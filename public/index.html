@@ -1,0 +1,91 @@
+<!doctype html>
+<html lang="tr">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>ParselBul — Parsel Sorgulama</title>
+  <meta name="description" content="ParselBul ile il, ilçe, ada ve parsel bilgisinden parsel sorgulaması yapın." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="stylesheet" href="/css/style.css" />
+</head>
+<body>
+  <header class="site-header">
+    <div class="container header-inner">
+      <a class="brand" href="/">
+        <span class="brand-mark">◆</span>
+        <span class="brand-name">Parsel<strong>Bul</strong></span>
+      </a>
+      <nav class="nav">
+        <a href="#sorgula">Sorgula</a>
+        <a href="#nasil">Nasıl çalışır?</a>
+        <a href="#iletisim">İletişim</a>
+      </nav>
+    </div>
+  </header>
+
+  <main>
+    <section class="hero">
+      <div class="container">
+        <p class="eyebrow">Tapu &amp; Kadastro odaklı</p>
+        <h1>Parselinizi saniyeler içinde bulun.</h1>
+        <p class="lede">
+          İl, ilçe, ada ve parsel numarasıyla arama yapın; konum, alan ve
+          nitelik bilgilerine tek ekrandan ulaşın.
+        </p>
+
+        <form id="sorgula" class="search-card" onsubmit="return false;">
+          <div class="field">
+            <label for="il">İl</label>
+            <input id="il" name="il" type="text" placeholder="Örn. Ankara" autocomplete="off" />
+          </div>
+          <div class="field">
+            <label for="ilce">İlçe</label>
+            <input id="ilce" name="ilce" type="text" placeholder="Örn. Çankaya" autocomplete="off" />
+          </div>
+          <div class="field">
+            <label for="ada">Ada</label>
+            <input id="ada" name="ada" type="text" inputmode="numeric" placeholder="Ada no" autocomplete="off" />
+          </div>
+          <div class="field">
+            <label for="parsel">Parsel</label>
+            <input id="parsel" name="parsel" type="text" inputmode="numeric" placeholder="Parsel no" autocomplete="off" />
+          </div>
+          <button class="btn" type="submit" id="sorgulaBtn">Sorgula</button>
+        </form>
+        <p class="hint" id="searchHint">
+          Sorgulama altyapısı veritabanı bağlandıktan sonra etkinleşecek.
+        </p>
+      </div>
+    </section>
+
+    <section id="nasil" class="features">
+      <div class="container grid">
+        <article class="feature">
+          <h3>Hızlı arama</h3>
+          <p>Ada/parsel bilgisiyle anında sonuç; gereksiz adım yok.</p>
+        </article>
+        <article class="feature">
+          <h3>Tek ekran</h3>
+          <p>Konum, alan ve nitelik bilgileri tek kartta toplanır.</p>
+        </article>
+        <article class="feature">
+          <h3>Güvenli veri</h3>
+          <p>Veriler Hostinger MySQL üzerinde merkezi olarak yönetilir.</p>
+        </article>
+      </div>
+    </section>
+  </main>
+
+  <footer id="iletisim" class="site-footer">
+    <div class="container footer-inner">
+      <span>&copy; <span id="year"></span> ParselBul</span>
+      <span class="status" id="status">
+        <span class="dot" id="statusDot"></span>
+        <span id="statusText">Durum kontrol ediliyor…</span>
+      </span>
+    </div>
+  </footer>
+
+  <script src="/js/main.js"></script>
+</body>
+</html>

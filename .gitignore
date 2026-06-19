@@ -1,0 +1,18 @@
+# Bağımlılıklar
+node_modules/
+
+# Ortam değişkenleri (gizli — asla commit etme)
+.env
+.env.local
+
+# Loglar
+npm-debug.log*
+*.log
+
+# OS / editör
+.DS_Store
+Thumbs.db
+.vscode/
+
+# Claude Code yerel ajan durumu
+.claude/
