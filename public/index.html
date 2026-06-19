@@ -8,7 +8,7 @@
   <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%230b1410'/%3E%3Cpath d='M16 5 L27 16 L16 27 L5 16 Z' fill='%2334c87a'/%3E%3C/svg%3E" />
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
         integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
-  <link rel="stylesheet" href="/css/style.css?v=2" />
+  <link rel="stylesheet" href="/css/style.css?v=3" />
 </head>
 <body>
   <!-- Harita -->
@@ -21,9 +21,17 @@
       <span class="brand-name">Parsel<strong>Bul</strong></span>
     </a>
     <div class="topbar-right">
-      <div class="layer-switch" id="layerSwitch">
-        <button type="button" data-layer="uydu" class="active">Uydu</button>
-        <button type="button" data-layer="sokak">Sokak</button>
+      <div class="style-switch" id="styleSwitch">
+        <button class="style-btn" id="styleBtn" type="button">🗺️ <span id="styleBtnLabel">Uydu</span> ▾</button>
+        <div class="style-menu" id="styleMenu" hidden>
+          <div class="style-menu-title">HARİTA STİLİ</div>
+          <div class="style-grid">
+            <button type="button" data-style="uydu" class="active">Uydu</button>
+            <button type="button" data-style="sokaklar">Sokaklar</button>
+            <button type="button" data-style="acik">Açık</button>
+            <button type="button" data-style="arazi">Arazi</button>
+          </div>
+        </div>
       </div>
       <button class="icon-btn" id="favOpenBtn" title="Favorilerim" aria-label="Favorilerim" hidden>★</button>
       <div class="auth-area" id="authArea">
@@ -50,7 +58,11 @@
   <div class="search-panel" id="searchPanel">
     <button class="panel-toggle" id="panelToggle" title="Paneli aç/kapat" aria-label="Paneli aç/kapat">⌕</button>
     <div class="panel-body">
-      <p class="panel-title">Parsel Sorgula</p>
+      <div class="search-tabs" id="searchTabs">
+        <button type="button" data-mode="adres" class="active">📍 Adres</button>
+        <button type="button" data-mode="adapar"># Ada / Parsel</button>
+      </div>
+
       <div class="field">
         <label for="il">İl</label>
         <select id="il"><option value="">Yükleniyor…</option></select>
@@ -63,18 +75,36 @@
         <label for="mahalle">Mahalle</label>
         <select id="mahalle" disabled><option value="">İlçe seçin</option></select>
       </div>
-      <div class="row">
+
+      <!-- Adres modu -->
+      <div id="modeAdres">
         <div class="field">
-          <label for="ada">Ada</label>
-          <input id="ada" type="text" inputmode="numeric" placeholder="Ada" autocomplete="off" />
+          <label for="cadde">Cadde / Sokak</label>
+          <input id="cadde" type="text" placeholder="Örn. Atatürk Caddesi" autocomplete="off" />
         </div>
         <div class="field">
-          <label for="parsel">Parsel</label>
-          <input id="parsel" type="text" inputmode="numeric" placeholder="Parsel" autocomplete="off" />
+          <label for="binaNo">Bina No</label>
+          <input id="binaNo" type="text" placeholder="Örn. 12" autocomplete="off" />
         </div>
+        <button class="btn" id="adresBulBtn">Adresi Bul</button>
       </div>
-      <button class="btn" id="sorgulaBtn">Sorgula</button>
-      <p class="panel-hint">İpucu: Haritada herhangi bir noktaya tıklayarak da parsel sorgulayabilirsiniz.</p>
+
+      <!-- Ada / Parsel modu -->
+      <div id="modeAdapar" hidden>
+        <div class="row">
+          <div class="field">
+            <label for="ada">Ada</label>
+            <input id="ada" type="text" inputmode="numeric" placeholder="Ada" autocomplete="off" />
+          </div>
+          <div class="field">
+            <label for="parsel">Parsel</label>
+            <input id="parsel" type="text" inputmode="numeric" placeholder="Parsel" autocomplete="off" />
+          </div>
+        </div>
+        <button class="btn" id="sorgulaBtn">Sorgula</button>
+      </div>
+
+      <p class="panel-hint" id="panelHint">İl/İlçe/Mahalle seçince harita oraya gider. Haritaya tıklayarak da parsel sorgulayabilirsiniz.</p>
     </div>
   </div>
 
@@ -121,6 +151,6 @@
 
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
           integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
-  <script src="/js/main.js?v=2"></script>
+  <script src="/js/main.js?v=3"></script>
 </body>
 </html>

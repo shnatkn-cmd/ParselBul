@@ -4,37 +4,58 @@
 // ---- Harita kurulumu ----
 const map = L.map('map', { zoomControl: true, attributionControl: true }).setView([39.2, 35.0], 6);
 
-const uydu = L.tileLayer(
-  'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
-  { maxZoom: 20, attribution: 'Tiles &copy; Esri' }
-);
-const sokak = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-  maxZoom: 19,
-  attribution: '&copy; OpenStreetMap',
+// Harita stilleri (her biri bir veya daha çok tile katmanı)
+const STILLER = {
+  uydu: {
+    ad: 'Uydu',
+    katmanlar: [
+      L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
+        { maxZoom: 20, attribution: 'Tiles &copy; Esri' }),
+      L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}',
+        { maxZoom: 20 }),
+    ],
+  },
+  sokaklar: {
+    ad: 'Sokaklar',
+    katmanlar: [L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
+      { maxZoom: 19, attribution: '&copy; OpenStreetMap' })],
+  },
+  acik: {
+    ad: 'Açık',
+    katmanlar: [L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png',
+      { maxZoom: 20, subdomains: 'abcd', attribution: '&copy; OpenStreetMap, &copy; CARTO' })],
+  },
+  arazi: {
+    ad: 'Arazi',
+    katmanlar: [L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/{z}/{y}/{x}',
+      { maxZoom: 19, attribution: 'Tiles &copy; Esri' })],
+  },
+};
+let aktifStil = null;
+
+function stilSec(anahtar) {
+  if (!STILLER[anahtar]) return;
+  if (aktifStil) STILLER[aktifStil].katmanlar.forEach((k) => map.removeLayer(k));
+  STILLER[anahtar].katmanlar.forEach((k) => k.addTo(map));
+  aktifStil = anahtar;
+  el('styleBtnLabel').textContent = STILLER[anahtar].ad;
+  document.querySelectorAll('.style-grid button').forEach((b) =>
+    b.classList.toggle('active', b.dataset.style === anahtar));
+}
+stilSec('uydu');
+
+el('styleBtn').addEventListener('click', (e) => {
+  e.stopPropagation();
+  el('styleMenu').hidden = !el('styleMenu').hidden;
 });
-// Uydu üstüne yol/etiket katmanı (referans)
-const etiket = L.tileLayer(
-  'https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}',
-  { maxZoom: 20 }
-);
-
-uydu.addTo(map);
-etiket.addTo(map);
-
-document.getElementById('layerSwitch').addEventListener('click', function (e) {
-  const b = e.target.closest('button');
+el('styleMenu').addEventListener('click', (e) => {
+  const b = e.target.closest('button[data-style]');
   if (!b) return;
-  document.querySelectorAll('.layer-switch button').forEach((x) => x.classList.remove('active'));
-  b.classList.add('active');
-  if (b.dataset.layer === 'uydu') {
-    map.removeLayer(sokak);
-    uydu.addTo(map);
-    etiket.addTo(map);
-  } else {
-    map.removeLayer(uydu);
-    map.removeLayer(etiket);
-    sokak.addTo(map);
-  }
+  stilSec(b.dataset.style);
+  el('styleMenu').hidden = true;
+});
+document.addEventListener('click', (e) => {
+  if (!el('styleSwitch').contains(e.target)) el('styleMenu').hidden = true;
 });
 
 // ---- Yardımcılar ----
@@ -63,12 +84,17 @@ function loading(on) { el('mapLoading').hidden = !on; }
 
 // ---- Parsel katmanı + bilgi paneli ----
 let parselLayer = null;
-const PARSEL_STIL = { color: '#ffcc00', weight: 3, fillColor: '#ffcc00', fillOpacity: 0.15 };
+// TKGM tarzı turuncu vurgu
+const PARSEL_STIL = { color: '#ff7a00', weight: 3, fillColor: '#ff9d2e', fillOpacity: 0.35 };
 
 function parseliCiz(p) {
   if (parselLayer) { map.removeLayer(parselLayer); parselLayer = null; }
   if (p.geometri && p.geometri.coordinates) {
     parselLayer = L.geoJSON({ type: 'Feature', geometry: p.geometri, properties: {} }, { style: PARSEL_STIL }).addTo(map);
+    // Harita üzerinde kalıcı etiket (ada/parsel + nitelik)
+    const etiketMetni = 'Ada ' + esc(p.adaNo) + ' / Parsel ' + esc(p.parselNo) +
+      (p.nitelik ? '<br><span style="font-weight:400">' + esc(p.nitelik) + '</span>' : '');
+    parselLayer.bindTooltip(etiketMetni, { permanent: true, direction: 'center', className: 'parsel-label', opacity: 1 }).openTooltip();
     try { map.fitBounds(parselLayer.getBounds(), { padding: [60, 60], maxZoom: 19 }); } catch { /* yoksa */ }
   } else if (p.merkez && p.merkez.lat) {
     map.setView([p.merkez.lat, p.merkez.lng], 18);
@@ -138,8 +164,17 @@ function doldur(sel, list, placeholder) {
   list.forEach((o) => {
     const opt = document.createElement('option');
     opt.value = o.id; opt.textContent = o.ad;
+    if (o.bounds) opt.dataset.bounds = JSON.stringify(o.bounds);
     sel.appendChild(opt);
   });
+}
+
+// Seçili idari birimin sınırına haritayı götürür (#1 otomatik bölgeye gitme)
+function seciliSinirGit(sel, maxZoom) {
+  const opt = sel.selectedOptions[0];
+  if (opt && opt.dataset.bounds) {
+    try { map.fitBounds(JSON.parse(opt.dataset.bounds), { padding: [25, 25], maxZoom: maxZoom || 16 }); } catch { /* yoksa */ }
+  }
 }
 
 async function illeriYukle() {
@@ -155,6 +190,7 @@ ilSel.addEventListener('change', async () => {
   ilceSel.innerHTML = '<option value="">Yükleniyor…</option>';
   mahalleSel.innerHTML = '<option value="">İlçe seçin</option>';
   if (!ilSel.value) { ilceSel.innerHTML = '<option value="">İl seçin</option>'; return; }
+  seciliSinirGit(ilSel, 11); // ile zoom
   try {
     const data = await (await fetch('/api/tkgm/ilceler/' + encodeURIComponent(ilSel.value))).json();
     if (data.ok) { doldur(ilceSel, data.veri, 'İlçe seçin'); ilceSel.disabled = false; }
@@ -166,11 +202,16 @@ ilceSel.addEventListener('change', async () => {
   mahalleSel.disabled = true;
   mahalleSel.innerHTML = '<option value="">Yükleniyor…</option>';
   if (!ilceSel.value) { mahalleSel.innerHTML = '<option value="">İlçe seçin</option>'; return; }
+  seciliSinirGit(ilceSel, 14); // ilçeye zoom
   try {
     const data = await (await fetch('/api/tkgm/mahalleler/' + encodeURIComponent(ilceSel.value))).json();
     if (data.ok) { doldur(mahalleSel, data.veri, 'Mahalle seçin'); mahalleSel.disabled = false; }
     else mahalleSel.innerHTML = '<option value="">Mahalleler yüklenemedi</option>';
   } catch { mahalleSel.innerHTML = '<option value="">Mahalleler yüklenemedi</option>'; }
+});
+
+mahalleSel.addEventListener('change', () => {
+  seciliSinirGit(mahalleSel, 17); // mahalleye zoom
 });
 
 async function araParsel() {
@@ -197,6 +238,56 @@ async function araParsel() {
 el('sorgulaBtn').addEventListener('click', araParsel);
 ['ada', 'parsel'].forEach((id) => el(id).addEventListener('keydown', (e) => {
   if (e.key === 'Enter') { e.preventDefault(); araParsel(); }
+}));
+
+// ---- Arama sekmeleri (Adres / Ada-Parsel) ----
+const selText = (sel) => (sel.value && sel.selectedOptions[0]) ? sel.selectedOptions[0].textContent : '';
+let aramaModu = 'adres';
+
+el('searchTabs').addEventListener('click', (e) => {
+  const b = e.target.closest('button');
+  if (!b) return;
+  aramaModu = b.dataset.mode;
+  document.querySelectorAll('#searchTabs button').forEach((x) => x.classList.toggle('active', x.dataset.mode === aramaModu));
+  el('modeAdres').hidden = aramaModu !== 'adres';
+  el('modeAdapar').hidden = aramaModu !== 'adapar';
+});
+
+// Adres modu: serbest metin adresi geocode edip o noktadaki parseli sorgular (adres OSM kaynaklı)
+async function adresBul() {
+  if (!kullanici) { authModalAc('giris'); toast('Sorgulama için giriş yapın.'); return; }
+  const cadde = el('cadde').value.trim();
+  const binaNo = el('binaNo').value.trim();
+  const mah = selText(mahalleSel);
+  if (!cadde && !mah) { toast('Mahalle seçin ya da cadde/sokak girin.'); return; }
+  const parcalar = [
+    (binaNo && cadde) ? (binaNo + ' ' + cadde) : cadde,
+    mah, selText(ilceSel), selText(ilSel),
+  ].filter(Boolean);
+  const q = parcalar.join(', ') + ', Türkiye';
+
+  loading(true);
+  el('adresBulBtn').disabled = true;
+  try {
+    const g = await (await fetch('/api/geocode?q=' + encodeURIComponent(q))).json();
+    if (!g.ok || !g.sonuc) { toast('Adres bulunamadı. Daha açık yazmayı deneyin.'); return; }
+    const { lat, lng } = g.sonuc;
+    map.flyTo([lat, lng], 18, { duration: 0.8 });
+    const res = await fetch('/api/tkgm/parsel-konum/' + lat.toFixed(6) + '/' + lng.toFixed(6));
+    if (res.status === 401) { authModalAc('giris'); return; }
+    const data = await res.json();
+    if (data.ok) parseliCiz(data.veri);
+    else toast('Adres bulundu; o noktada parsel yok. Yakınına tıklayarak seçebilirsiniz.');
+  } catch {
+    toast('Adres servisi yanıt vermedi.');
+  } finally {
+    loading(false);
+    el('adresBulBtn').disabled = false;
+  }
+}
+el('adresBulBtn').addEventListener('click', adresBul);
+['cadde', 'binaNo'].forEach((id) => el(id).addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') { e.preventDefault(); adresBul(); }
 }));
 
 // Mobil panel aç/kapat

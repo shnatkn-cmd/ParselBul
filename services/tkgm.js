@@ -71,12 +71,32 @@ async function httpGet(url) {
   return data;
 }
 
-/** GeoJSON FeatureCollection -> sade {id, ad} listesi. */
+/** Bir GeoJSON geometrisinden sınır kutusu: [[güney,batı],[kuzey,doğu]] (Leaflet bounds). */
+function boundsFromGeometry(geom) {
+  if (!geom || !geom.coordinates) return null;
+  let minLat = Infinity, minLng = Infinity, maxLat = -Infinity, maxLng = -Infinity;
+  const walk = (a) => {
+    if (typeof a[0] === 'number') {
+      const lng = a[0], lat = a[1];
+      if (lng < minLng) minLng = lng;
+      if (lng > maxLng) maxLng = lng;
+      if (lat < minLat) minLat = lat;
+      if (lat > maxLat) maxLat = lat;
+    } else {
+      a.forEach(walk);
+    }
+  };
+  walk(geom.coordinates);
+  if (minLat === Infinity) return null;
+  return [[minLat, minLng], [maxLat, maxLng]];
+}
+
+/** GeoJSON FeatureCollection -> sade {id, ad, bounds} listesi (bounds: idari sınır kutusu). */
 function featuresToList(data) {
   if (data && data.type === 'FeatureCollection' && Array.isArray(data.features)) {
     return data.features.map((f) => {
       const p = f.properties || {};
-      return { id: p.id, ad: p.text || p.ad || p.name || '' };
+      return { id: p.id, ad: p.text || p.ad || p.name || '', bounds: boundsFromGeometry(f.geometry) };
     });
   }
   return Array.isArray(data) ? data : [];

@@ -36,6 +36,7 @@ app.use('/api/auth', require('./routes/auth'));         // kayıt / giriş / ç�
 app.use('/api/tkgm', require('./routes/tkgm'));         // canlı TKGM sorgusu (iller/ilçeler/mahalleler/parsel)
 app.use('/api/parsel', require('./routes/parsel'));     // önbellekte (kayıtlı parsellerde) arama
 app.use('/api/favoriler', require('./routes/favoriler')); // kullanıcı favori parselleri
+app.use('/api/geocode', require('./routes/geocode'));   // adres -> koordinat (OSM Nominatim)
 
 // Sağlık kontrolü (Hostinger / izleme için)
 app.get('/health', (req, res) => {
