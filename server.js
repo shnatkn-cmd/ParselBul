@@ -14,8 +14,9 @@ app.use(express.json());
 // Statik anasayfa ve varlıklar
 app.use(express.static(path.join(__dirname, 'public')));
 
-// Parsel API rotaları
-app.use('/api/parsel', require('./routes/parsel'));
+// API rotaları
+app.use('/api/tkgm', require('./routes/tkgm'));     // canlı TKGM sorgusu (iller/ilçeler/mahalleler/parsel)
+app.use('/api/parsel', require('./routes/parsel')); // önbellekte (kayıtlı parsellerde) arama
 
 // Sağlık kontrolü (Hostinger / izleme için)
 app.get('/health', (req, res) => {

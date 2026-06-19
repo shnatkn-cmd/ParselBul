@@ -1,5 +1,10 @@
 'use strict';
 
+/**
+ * Önbellek (daha önce TKGM'den sorgulanıp DB'ye kaydedilmiş parseller) araması.
+ * Canlı TKGM sorgusu için routes/tkgm.js kullanılır.
+ */
+
 const express = require('express');
 const db = require('../config/db');
 
@@ -7,8 +12,8 @@ const router = express.Router();
 
 /**
  * GET /api/parsel/ara
- * Sorgu parametreleri: il, ilce, ada, parsel (hepsi opsiyonel, en az biri gerekli)
- * Eşleşen parselleri döndürür.
+ * Parametreler: il, ilce, ada, parsel (hepsi opsiyonel, en az biri gerekli).
+ * Önbellekteki eşleşen parselleri döndürür.
  */
 router.get('/ara', async (req, res) => {
   if (!db.isConfigured()) {
@@ -16,8 +21,6 @@ router.get('/ara', async (req, res) => {
   }
 
   const { il, ilce, ada, parsel } = req.query;
-
-  // Dinamik WHERE — yalnızca dolu alanlar, parametreli (SQL injection güvenli)
   const kosullar = [];
   const degerler = [];
   if (il) { kosullar.push('il LIKE ?'); degerler.push(`%${il}%`); }
@@ -31,10 +34,11 @@ router.get('/ara', async (req, res) => {
 
   try {
     const sql = `
-      SELECT id, il, ilce, mahalle, ada, parsel, alan_m2, nitelik, enlem, boylam
+      SELECT mahalle_kodu, il, ilce, mahalle, ada, parsel, alan_m2, nitelik, pafta,
+             merkez_lat, merkez_lng, sorgu_sayisi, updated_at
       FROM parseller
       WHERE ${kosullar.join(' AND ')}
-      ORDER BY il, ilce, CAST(ada AS UNSIGNED), CAST(parsel AS UNSIGNED)
+      ORDER BY updated_at DESC
       LIMIT 50`;
     const [rows] = await db.getPool().query(sql, degerler);
     res.json({ ok: true, adet: rows.length, sonuclar: rows });

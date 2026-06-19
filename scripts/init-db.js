@@ -1,7 +1,10 @@
 'use strict';
 
 /**
- * Veritabanı şemasını kurar (idempotent) ve tablo boşsa örnek veri ekler.
+ * Veritabanı şemasını kurar (idempotent).
+ * `parseller` tablosu, TKGM'den sorgulanan parsellerin ÖNBELLEĞİdir:
+ * her başarılı sorgu burada saklanır, tekrar sorgulamada DB'den hızlıca döner.
+ *
  * Çalıştırma:  npm run db:init
  */
 
@@ -11,26 +14,44 @@ const db = require('../config/db');
 const CREATE_PARSELLER = `
 CREATE TABLE IF NOT EXISTS parseller (
   id INT AUTO_INCREMENT PRIMARY KEY,
-  il VARCHAR(50) NOT NULL,
-  ilce VARCHAR(50) NOT NULL,
-  mahalle VARCHAR(100) DEFAULT NULL,
+  mahalle_kodu VARCHAR(20) NOT NULL,
+  il VARCHAR(80) DEFAULT NULL,
+  ilce VARCHAR(80) DEFAULT NULL,
+  mahalle VARCHAR(120) DEFAULT NULL,
   ada VARCHAR(20) NOT NULL,
   parsel VARCHAR(20) NOT NULL,
-  alan_m2 DECIMAL(12,2) DEFAULT NULL,
+  alan_m2 DECIMAL(14,2) DEFAULT NULL,
   nitelik VARCHAR(255) DEFAULT NULL,
-  enlem DECIMAL(10,7) DEFAULT NULL,
-  boylam DECIMAL(10,7) DEFAULT NULL,
+  pafta VARCHAR(80) DEFAULT NULL,
+  durum VARCHAR(40) DEFAULT NULL,
+  merkez_lat DECIMAL(10,7) DEFAULT NULL,
+  merkez_lng DECIMAL(10,7) DEFAULT NULL,
+  geometri_json LONGTEXT DEFAULT NULL,
+  sorgu_sayisi INT NOT NULL DEFAULT 1,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  INDEX idx_arama (il, ilce, ada, parsel)
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  UNIQUE KEY uq_parsel (mahalle_kodu, ada, parsel),
+  INDEX idx_konum (il, ilce, ada, parsel)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_turkish_ci;
 `;
 
-const ORNEK_VERILER = [
-  ['Ankara', 'Çankaya', 'Kızılay', '1234', '5', 850.50, 'Arsa', 39.9208, 32.8541],
-  ['Ankara', 'Çankaya', 'Bahçelievler', '1234', '12', 1200.00, 'Bahçeli kargir ev', 39.9180, 32.8210],
-  ['İstanbul', 'Kadıköy', 'Caferağa', '300', '7', 420.75, 'Arsa', 40.9901, 29.0270],
-  ['İzmir', 'Konak', 'Alsancak', '88', '21', 640.00, 'Tarla', 38.4360, 27.1450],
-];
+async function tabloVar(pool, ad) {
+  const [rows] = await pool.query(
+    `SELECT COUNT(*) AS c FROM information_schema.tables
+     WHERE table_schema = DATABASE() AND table_name = ?`,
+    [ad]
+  );
+  return rows[0].c > 0;
+}
+
+async function kolonVar(pool, tablo, kolon) {
+  const [rows] = await pool.query(
+    `SELECT COUNT(*) AS c FROM information_schema.columns
+     WHERE table_schema = DATABASE() AND table_name = ? AND column_name = ?`,
+    [tablo, kolon]
+  );
+  return rows[0].c > 0;
+}
 
 async function main() {
   if (!db.isConfigured()) {
@@ -39,24 +60,21 @@ async function main() {
   }
   const pool = db.getPool();
 
-  console.log('Şema kuruluyor...');
-  await pool.query(CREATE_PARSELLER);
-  console.log('  ✓ parseller tablosu hazır');
-
-  const [[{ c }]] = await pool.query('SELECT COUNT(*) AS c FROM parseller');
-  if (c === 0) {
-    console.log('Tablo boş, örnek veriler ekleniyor...');
-    await pool.query(
-      `INSERT INTO parseller
-        (il, ilce, mahalle, ada, parsel, alan_m2, nitelik, enlem, boylam)
-       VALUES ?`,
-      [ORNEK_VERILER]
-    );
-    console.log(`  ✓ ${ORNEK_VERILER.length} örnek kayıt eklendi`);
-  } else {
-    console.log(`Tabloda zaten ${c} kayıt var, örnek veri eklenmedi.`);
+  // Eski demo şemasını (mahalle_kodu kolonu yok) algıla ve yenisiyle değiştir.
+  if (await tabloVar(pool, 'parseller')) {
+    const yeni = await kolonVar(pool, 'parseller', 'mahalle_kodu');
+    if (!yeni) {
+      console.log('Eski demo "parseller" tablosu bulundu, TKGM önbellek şemasına geçiliyor...');
+      await pool.query('DROP TABLE parseller');
+    }
   }
 
+  console.log('Şema kuruluyor...');
+  await pool.query(CREATE_PARSELLER);
+  console.log('  ✓ parseller (TKGM önbelleği) hazır');
+
+  const [[{ c }]] = await pool.query('SELECT COUNT(*) AS c FROM parseller');
+  console.log(`Önbellekte ${c} parsel kayıtlı.`);
   console.log('Bitti.');
   process.exit(0);
 }

@@ -36,11 +36,15 @@
         <form id="sorgula" class="search-card" onsubmit="return false;">
           <div class="field">
             <label for="il">İl</label>
-            <input id="il" name="il" type="text" placeholder="Örn. Ankara" autocomplete="off" />
+            <select id="il" name="il"><option value="">Yükleniyor…</option></select>
           </div>
           <div class="field">
             <label for="ilce">İlçe</label>
-            <input id="ilce" name="ilce" type="text" placeholder="Örn. Çankaya" autocomplete="off" />
+            <select id="ilce" name="ilce" disabled><option value="">İl seçin</option></select>
+          </div>
+          <div class="field">
+            <label for="mahalle">Mahalle</label>
+            <select id="mahalle" name="mahalle" disabled><option value="">İlçe seçin</option></select>
           </div>
           <div class="field">
             <label for="ada">Ada</label>
@@ -53,7 +57,8 @@
           <button class="btn" type="submit" id="sorgulaBtn">Sorgula</button>
         </form>
         <p class="hint" id="searchHint">
-          En az bir kriter girin (örn. İl + Ada/Parsel) ve Sorgula'ya basın.
+          İl → İlçe → Mahalle seçin, Ada ve Parsel numarasını girip Sorgula'ya basın.
+          Veriler resmî TKGM servisinden gelir.
         </p>
 
         <div id="results" class="results" hidden></div>
