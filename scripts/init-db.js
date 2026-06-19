@@ -35,6 +35,19 @@ CREATE TABLE IF NOT EXISTS parseller (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_turkish_ci;
 `;
 
+const CREATE_KULLANICILAR = `
+CREATE TABLE IF NOT EXISTS kullanicilar (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  ad VARCHAR(120) DEFAULT NULL,
+  eposta VARCHAR(190) NOT NULL,
+  sifre_hash VARCHAR(255) NOT NULL,
+  rol VARCHAR(20) NOT NULL DEFAULT 'uye',
+  son_giris TIMESTAMP NULL DEFAULT NULL,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  UNIQUE KEY uq_eposta (eposta)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_turkish_ci;
+`;
+
 async function tabloVar(pool, ad) {
   const [rows] = await pool.query(
     `SELECT COUNT(*) AS c FROM information_schema.tables
@@ -72,9 +85,12 @@ async function main() {
   console.log('Şema kuruluyor...');
   await pool.query(CREATE_PARSELLER);
   console.log('  ✓ parseller (TKGM önbelleği) hazır');
+  await pool.query(CREATE_KULLANICILAR);
+  console.log('  ✓ kullanicilar hazır');
 
   const [[{ c }]] = await pool.query('SELECT COUNT(*) AS c FROM parseller');
-  console.log(`Önbellekte ${c} parsel kayıtlı.`);
+  const [[{ k }]] = await pool.query('SELECT COUNT(*) AS k FROM kullanicilar');
+  console.log(`Önbellekte ${c} parsel, ${k} kullanıcı kayıtlı.`);
   console.log('Bitti.');
   process.exit(0);
 }

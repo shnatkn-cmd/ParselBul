@@ -46,6 +46,7 @@ function fmtAlan(v) {
   if (v == null || v === 0) return '—';
   return Number(v).toLocaleString('tr-TR', { minimumFractionDigits: 2 }) + ' m²';
 }
+let kullanici = null;
 let toastTimer = null;
 function toast(msg) {
   const t = el('toast');
@@ -103,10 +104,12 @@ el('infoClose').addEventListener('click', () => {
 
 // ---- Haritaya tıkla → koordinatla sorgu ----
 map.on('click', async (e) => {
+  if (!kullanici) { authModalAc('giris'); toast('Sorgulama için giriş yapın.'); return; }
   const { lat, lng } = e.latlng;
   loading(true);
   try {
     const res = await fetch('/api/tkgm/parsel-konum/' + lat.toFixed(6) + '/' + lng.toFixed(6));
+    if (res.status === 401) { authModalAc('giris'); return; }
     const data = await res.json();
     if (data.ok) parseliCiz(data.veri);
     else toast(res.status === 404 ? 'Bu noktada parsel bulunamadı.' : (data.hata || 'Sorgu hatası.'));
@@ -161,6 +164,7 @@ ilceSel.addEventListener('change', async () => {
 });
 
 async function araParsel() {
+  if (!kullanici) { authModalAc('giris'); toast('Sorgulama için giriş yapın.'); return; }
   const mah = mahalleSel.value, ada = el('ada').value.trim(), parsel = el('parsel').value.trim();
   if (!mah) { toast('Lütfen İl → İlçe → Mahalle seçin.'); return; }
   if (!ada || !parsel) { toast('Lütfen Ada ve Parsel numarasını girin.'); return; }
@@ -168,6 +172,7 @@ async function araParsel() {
   el('sorgulaBtn').disabled = true;
   try {
     const res = await fetch('/api/tkgm/parsel/' + encodeURIComponent(mah) + '/' + encodeURIComponent(ada) + '/' + encodeURIComponent(parsel));
+    if (res.status === 401) { authModalAc('giris'); return; }
     const data = await res.json();
     if (data.ok) { parseliCiz(data.veri); bilgiGoster(data.veri, data.kaynak); }
     else toast(res.status === 404 ? 'Parsel bulunamadı.' : (data.hata || 'Sorgu hatası.'));
@@ -189,4 +194,99 @@ el('panelToggle').addEventListener('click', () => {
   el('searchPanel').classList.toggle('collapsed');
 });
 
+// ---- Kimlik doğrulama (giriş / kayıt / çıkış) ----
+let authMod = 'giris'; // 'giris' | 'kayit'
+
+function renderAuth() {
+  const area = el('authArea');
+  if (kullanici) {
+    const adGoster = kullanici.ad || kullanici.eposta;
+    const bashar = (kullanici.ad || kullanici.eposta || '?').trim().charAt(0).toUpperCase();
+    area.innerHTML =
+      '<div class="user-chip"><span class="avatar">' + esc(bashar) + '</span>' +
+      '<span>' + esc(adGoster) + '</span>' +
+      '<button id="logoutBtn">Çıkış</button></div>';
+    el('logoutBtn').addEventListener('click', cikisYap);
+  } else {
+    area.innerHTML = '<button class="btn-login" id="loginOpenBtn">Giriş Yap</button>';
+    el('loginOpenBtn').addEventListener('click', () => authModalAc('giris'));
+  }
+}
+
+function authModalAc(mod) {
+  setAuthMod(mod || 'giris');
+  el('authErr').textContent = '';
+  el('authModal').hidden = false;
+  el('eposta').focus();
+}
+function authModalKapat() { el('authModal').hidden = true; }
+
+function setAuthMod(mod) {
+  authMod = mod;
+  document.querySelectorAll('#authTabs button').forEach((b) =>
+    b.classList.toggle('active', b.dataset.tab === mod));
+  el('adField').hidden = mod !== 'kayit';
+  el('authTitle').textContent = mod === 'kayit' ? 'Kayıt Ol' : 'Giriş Yap';
+  el('authSubmit').textContent = mod === 'kayit' ? 'Kayıt Ol' : 'Giriş Yap';
+  el('sifre').autocomplete = mod === 'kayit' ? 'new-password' : 'current-password';
+}
+
+el('authTabs').addEventListener('click', (e) => {
+  const b = e.target.closest('button');
+  if (b) { setAuthMod(b.dataset.tab); el('authErr').textContent = ''; }
+});
+el('authClose').addEventListener('click', authModalKapat);
+el('authModal').addEventListener('click', (e) => { if (e.target === el('authModal')) authModalKapat(); });
+el('loginOpenBtn').addEventListener('click', () => authModalAc('giris'));
+
+el('authForm').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const err = el('authErr');
+  err.textContent = '';
+  const govde = {
+    eposta: el('eposta').value.trim(),
+    sifre: el('sifre').value,
+  };
+  if (authMod === 'kayit') govde.ad = el('ad').value.trim();
+  const url = authMod === 'kayit' ? '/api/auth/kayit' : '/api/auth/giris';
+  el('authSubmit').disabled = true;
+  try {
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(govde),
+    });
+    const data = await res.json();
+    if (data.ok) {
+      kullanici = data.kullanici;
+      renderAuth();
+      authModalKapat();
+      el('authForm').reset();
+      toast('Hoş geldiniz' + (kullanici.ad ? ', ' + kullanici.ad : '') + '!');
+    } else {
+      err.textContent = data.hata || 'İşlem başarısız.';
+    }
+  } catch {
+    err.textContent = 'Sunucuya ulaşılamadı.';
+  } finally {
+    el('authSubmit').disabled = false;
+  }
+});
+
+async function cikisYap() {
+  try { await fetch('/api/auth/cikis', { method: 'POST' }); } catch { /* yoksay */ }
+  kullanici = null;
+  renderAuth();
+  toast('Çıkış yapıldı.');
+}
+
+async function oturumKontrol() {
+  try {
+    const data = await (await fetch('/api/auth/ben')).json();
+    kullanici = data.kullanici || null;
+  } catch { kullanici = null; }
+  renderAuth();
+}
+
+oturumKontrol();
 illeriYukle();

@@ -3,6 +3,7 @@
 const express = require('express');
 const tkgm = require('../services/tkgm');
 const cache = require('../services/parselCache');
+const { requireAuth } = require('./auth');
 
 const router = express.Router();
 
@@ -37,7 +38,7 @@ router.get('/mahalleler/:ilceKodu', async (req, res) => {
  * Koordinatla parsel sorgu: haritada tıklanan noktadaki parseli döner.
  * Bulunursa (mahalle kodu varsa) önbelleğe de yazar.
  */
-router.get('/parsel-konum/:lat/:lng', async (req, res) => {
+router.get('/parsel-konum/:lat/:lng', requireAuth, async (req, res) => {
   const { lat, lng } = req.params;
   try {
     const parselVeri = await tkgm.getParselByKoordinat(lat, lng);
@@ -55,7 +56,7 @@ router.get('/parsel-konum/:lat/:lng', async (req, res) => {
  * Parsel sorgu: mahalle kodu + ada + parsel.
  * Önce DB önbelleğine bakar; yoksa TKGM'den çeker ve önbelleğe yazar.
  */
-router.get('/parsel/:mahalleKodu/:ada/:parsel', async (req, res) => {
+router.get('/parsel/:mahalleKodu/:ada/:parsel', requireAuth, async (req, res) => {
   const { mahalleKodu, ada, parsel } = req.params;
   try {
     const cached = await cache.getCached(mahalleKodu, ada, parsel);

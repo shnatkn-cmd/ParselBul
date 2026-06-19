@@ -9,12 +9,21 @@ const db = require('./config/db');
 const app = express();
 const PORT = process.env.PORT || 3000;
 
+app.set('trust proxy', 1); // Hostinger/Passenger https proxy arkasında
 app.use(express.json());
+app.use(express.urlencoded({ extended: false }));
+
+// Oturum (yalnızca DB yapılandırılmışsa — session store MySQL kullanır)
+if (db.isConfigured()) {
+  const { createSessionMiddleware } = require('./config/session');
+  app.use(createSessionMiddleware());
+}
 
 // Statik anasayfa ve varlıklar
 app.use(express.static(path.join(__dirname, 'public')));
 
 // API rotaları
+app.use('/api/auth', require('./routes/auth'));     // kayıt / giriş / çıkış / ben
 app.use('/api/tkgm', require('./routes/tkgm'));     // canlı TKGM sorgusu (iller/ilçeler/mahalleler/parsel)
 app.use('/api/parsel', require('./routes/parsel')); // önbellekte (kayıtlı parsellerde) arama
 
