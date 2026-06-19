@@ -2,97 +2,75 @@
 <html lang="tr">
 <head>
   <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>ParselBul — Parsel Sorgulama</title>
-  <meta name="description" content="ParselBul ile il, ilçe, ada ve parsel bilgisinden parsel sorgulaması yapın." />
-  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
+  <title>ParselBul — Tapu ve Parsel Sorgusu</title>
+  <meta name="description" content="Türkiye geneli parsel sorgulama. Haritaya tıklayın, parsel sınırları ve bilgileri anında görünsün." />
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+        integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
   <link rel="stylesheet" href="/css/style.css" />
 </head>
 <body>
-  <header class="site-header">
-    <div class="container header-inner">
-      <a class="brand" href="/">
-        <span class="brand-mark">◆</span>
-        <span class="brand-name">Parsel<strong>Bul</strong></span>
-      </a>
-      <nav class="nav">
-        <a href="#sorgula">Sorgula</a>
-        <a href="#nasil">Nasıl çalışır?</a>
-        <a href="#iletisim">İletişim</a>
-      </nav>
+  <!-- Harita -->
+  <div id="map"></div>
+
+  <!-- Üst bar -->
+  <div class="topbar">
+    <a class="brand" href="/">
+      <span class="brand-mark">◆</span>
+      <span class="brand-name">Parsel<strong>Bul</strong></span>
+    </a>
+    <div class="layer-switch" id="layerSwitch">
+      <button type="button" data-layer="uydu" class="active">Uydu</button>
+      <button type="button" data-layer="sokak">Sokak</button>
     </div>
-  </header>
+  </div>
 
-  <main>
-    <section class="hero">
-      <div class="container">
-        <p class="eyebrow">Tapu &amp; Kadastro odaklı</p>
-        <h1>Parselinizi saniyeler içinde bulun.</h1>
-        <p class="lede">
-          İl, ilçe, ada ve parsel numarasıyla arama yapın; konum, alan ve
-          nitelik bilgilerine tek ekrandan ulaşın.
-        </p>
-
-        <form id="sorgula" class="search-card" onsubmit="return false;">
-          <div class="field">
-            <label for="il">İl</label>
-            <select id="il" name="il"><option value="">Yükleniyor…</option></select>
-          </div>
-          <div class="field">
-            <label for="ilce">İlçe</label>
-            <select id="ilce" name="ilce" disabled><option value="">İl seçin</option></select>
-          </div>
-          <div class="field">
-            <label for="mahalle">Mahalle</label>
-            <select id="mahalle" name="mahalle" disabled><option value="">İlçe seçin</option></select>
-          </div>
-          <div class="field">
-            <label for="ada">Ada</label>
-            <input id="ada" name="ada" type="text" inputmode="numeric" placeholder="Ada no" autocomplete="off" />
-          </div>
-          <div class="field">
-            <label for="parsel">Parsel</label>
-            <input id="parsel" name="parsel" type="text" inputmode="numeric" placeholder="Parsel no" autocomplete="off" />
-          </div>
-          <button class="btn" type="submit" id="sorgulaBtn">Sorgula</button>
-        </form>
-        <p class="hint" id="searchHint">
-          İl → İlçe → Mahalle seçin, Ada ve Parsel numarasını girip Sorgula'ya basın.
-          Veriler resmî TKGM servisinden gelir.
-        </p>
-
-        <div id="results" class="results" hidden></div>
+  <!-- Arama paneli -->
+  <div class="search-panel" id="searchPanel">
+    <button class="panel-toggle" id="panelToggle" title="Paneli aç/kapat" aria-label="Paneli aç/kapat">⌕</button>
+    <div class="panel-body">
+      <p class="panel-title">Parsel Sorgula</p>
+      <div class="field">
+        <label for="il">İl</label>
+        <select id="il"><option value="">Yükleniyor…</option></select>
       </div>
-    </section>
-
-    <section id="nasil" class="features">
-      <div class="container grid">
-        <article class="feature">
-          <h3>Hızlı arama</h3>
-          <p>Ada/parsel bilgisiyle anında sonuç; gereksiz adım yok.</p>
-        </article>
-        <article class="feature">
-          <h3>Tek ekran</h3>
-          <p>Konum, alan ve nitelik bilgileri tek kartta toplanır.</p>
-        </article>
-        <article class="feature">
-          <h3>Güvenli veri</h3>
-          <p>Veriler Hostinger MySQL üzerinde merkezi olarak yönetilir.</p>
-        </article>
+      <div class="field">
+        <label for="ilce">İlçe</label>
+        <select id="ilce" disabled><option value="">İl seçin</option></select>
       </div>
-    </section>
-  </main>
-
-  <footer id="iletisim" class="site-footer">
-    <div class="container footer-inner">
-      <span>&copy; <span id="year"></span> ParselBul</span>
-      <span class="status" id="status">
-        <span class="dot" id="statusDot"></span>
-        <span id="statusText">Durum kontrol ediliyor…</span>
-      </span>
+      <div class="field">
+        <label for="mahalle">Mahalle</label>
+        <select id="mahalle" disabled><option value="">İlçe seçin</option></select>
+      </div>
+      <div class="row">
+        <div class="field">
+          <label for="ada">Ada</label>
+          <input id="ada" type="text" inputmode="numeric" placeholder="Ada" autocomplete="off" />
+        </div>
+        <div class="field">
+          <label for="parsel">Parsel</label>
+          <input id="parsel" type="text" inputmode="numeric" placeholder="Parsel" autocomplete="off" />
+        </div>
+      </div>
+      <button class="btn" id="sorgulaBtn">Sorgula</button>
+      <p class="panel-hint">İpucu: Haritada herhangi bir noktaya tıklayarak da parsel sorgulayabilirsiniz.</p>
     </div>
-  </footer>
+  </div>
 
+  <!-- Bilgi paneli -->
+  <aside class="info-panel" id="infoPanel" hidden>
+    <button class="info-close" id="infoClose" aria-label="Kapat">×</button>
+    <div id="infoContent"></div>
+  </aside>
+
+  <!-- Bildirim -->
+  <div class="toast" id="toast" hidden></div>
+
+  <!-- Yükleniyor -->
+  <div class="map-loading" id="mapLoading" hidden><span class="spinner"></span> Sorgulanıyor…</div>
+
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+          integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
   <script src="/js/main.js"></script>
 </body>
 </html>

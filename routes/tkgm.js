@@ -34,6 +34,24 @@ router.get('/mahalleler/:ilceKodu', async (req, res) => {
 });
 
 /**
+ * Koordinatla parsel sorgu: haritada tıklanan noktadaki parseli döner.
+ * Bulunursa (mahalle kodu varsa) önbelleğe de yazar.
+ */
+router.get('/parsel-konum/:lat/:lng', async (req, res) => {
+  const { lat, lng } = req.params;
+  try {
+    const parselVeri = await tkgm.getParselByKoordinat(lat, lng);
+    if (parselVeri.mahalleKodu) {
+      cache.upsert(parselVeri).catch((e) => console.error('Önbellek yazma hatası:', e.message));
+    }
+    res.json({ ok: true, kaynak: 'tkgm', veri: parselVeri });
+  } catch (err) {
+    const kod = err.status === 404 ? 404 : 502;
+    res.status(kod).json({ ok: false, hata: err.message });
+  }
+});
+
+/**
  * Parsel sorgu: mahalle kodu + ada + parsel.
  * Önce DB önbelleğine bakar; yoksa TKGM'den çeker ve önbelleğe yazar.
  */
