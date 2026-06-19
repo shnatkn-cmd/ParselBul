@@ -47,6 +47,10 @@ function fmtAlan(v) {
   return Number(v).toLocaleString('tr-TR', { minimumFractionDigits: 2 }) + ' m²';
 }
 let kullanici = null;
+let aktifParsel = null;          // bilgi panelinde gösterilen parsel
+let favoriler = [];              // kullanıcının favorileri (DB satırları)
+const favoriIndex = new Map();   // "mahalleKodu/ada/parsel" -> favori
+let olcumModu = null;            // null | 'mesafe' | 'alan'
 let toastTimer = null;
 function toast(msg) {
   const t = el('toast');
@@ -73,13 +77,16 @@ function parseliCiz(p) {
 }
 
 function bilgiGoster(p, kaynak) {
+  aktifParsel = p;
   const harita = p.merkez && p.merkez.lat ? p.merkez.lat + ',' + p.merkez.lng : '';
   const paylasMetni = encodeURIComponent(
     `${p.il}/${p.ilce}/${p.mahalle} — Ada ${p.adaNo} Parsel ${p.parselNo}` +
     (harita ? ` https://www.google.com/maps?q=${harita}` : '')
   );
+  const favAktif = favoriIndex.has(favoriKey(p));
   el('infoContent').innerHTML =
     '<div class="info-head">' +
+      '<button class="info-fav' + (favAktif ? ' aktif' : '') + '" id="favToggle" title="Favorilere ekle/çıkar">★</button>' +
       '<div class="info-loc">' + esc(p.il) + ' / ' + esc(p.ilce) + ' / ' + esc(p.mahalle) + '</div>' +
       '<div class="info-ap">Ada ' + esc(p.adaNo) + ' · Parsel ' + esc(p.parselNo) + '</div>' +
     '</div>' +
@@ -95,6 +102,8 @@ function bilgiGoster(p, kaynak) {
     '</div>' +
     '<div class="info-src">Kaynak: ' + (kaynak === 'onbellek' ? 'Önbellek (kayıtlı)' : 'TKGM') + '</div>';
   el('infoPanel').hidden = false;
+  const favBtn = el('favToggle');
+  if (favBtn) favBtn.addEventListener('click', () => favoriToggle(p));
 }
 
 el('infoClose').addEventListener('click', () => {
@@ -102,8 +111,9 @@ el('infoClose').addEventListener('click', () => {
   if (parselLayer) { map.removeLayer(parselLayer); parselLayer = null; }
 });
 
-// ---- Haritaya tıkla → koordinatla sorgu ----
+// ---- Haritaya tıkla → koordinatla sorgu (ölçüm modunda nokta ekler) ----
 map.on('click', async (e) => {
+  if (olcumModu) { olcumNoktaEkle(e.latlng); return; }
   if (!kullanici) { authModalAc('giris'); toast('Sorgulama için giriş yapın.'); return; }
   const { lat, lng } = e.latlng;
   loading(true);
@@ -211,6 +221,8 @@ function renderAuth() {
     area.innerHTML = '<button class="btn-login" id="loginOpenBtn">Giriş Yap</button>';
     el('loginOpenBtn').addEventListener('click', () => authModalAc('giris'));
   }
+  el('favOpenBtn').hidden = !kullanici;
+  if (!kullanici) { favoriler = []; favoriIndex.clear(); el('favDropdown').hidden = true; }
 }
 
 function authModalAc(mod) {
@@ -260,6 +272,7 @@ el('authForm').addEventListener('submit', async (e) => {
     if (data.ok) {
       kullanici = data.kullanici;
       renderAuth();
+      favorileriYukle();
       authModalKapat();
       el('authForm').reset();
       toast('Hoş geldiniz' + (kullanici.ad ? ', ' + kullanici.ad : '') + '!');
@@ -286,7 +299,181 @@ async function oturumKontrol() {
     kullanici = data.kullanici || null;
   } catch { kullanici = null; }
   renderAuth();
+  if (kullanici) favorileriYukle();
 }
+
+// ---- Favoriler ----
+function favoriKey(p) {
+  const mk = p.mahalleKodu != null ? p.mahalleKodu : p.mahalle_kodu;
+  const a = p.adaNo != null ? p.adaNo : p.ada;
+  const pr = p.parselNo != null ? p.parselNo : p.parsel;
+  return mk + '/' + a + '/' + pr;
+}
+
+async function favorileriYukle() {
+  if (!kullanici) { favoriler = []; favoriIndex.clear(); renderFavoriler(); return; }
+  try {
+    const data = await (await fetch('/api/favoriler')).json();
+    if (data.ok) {
+      favoriler = data.veri;
+      favoriIndex.clear();
+      favoriler.forEach((f) => favoriIndex.set(favoriKey(f), f));
+    }
+  } catch { /* yoksay */ }
+  renderFavoriler();
+  if (aktifParsel && el('favToggle')) {
+    el('favToggle').classList.toggle('aktif', favoriIndex.has(favoriKey(aktifParsel)));
+  }
+}
+
+async function favoriToggle(p) {
+  if (!kullanici) { authModalAc('giris'); return; }
+  const key = favoriKey(p);
+  const mevcut = favoriIndex.get(key);
+  try {
+    if (mevcut) {
+      const r = await fetch('/api/favoriler/' + mevcut.id, { method: 'DELETE' });
+      if (r.ok) toast('Favoriden çıkarıldı.');
+    } else {
+      const r = await fetch('/api/favoriler', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(p),
+      });
+      if (r.status === 401) { authModalAc('giris'); return; }
+      if (r.ok) toast('Favorilere eklendi.');
+    }
+    await favorileriYukle();
+  } catch { toast('İşlem başarısız.'); }
+}
+
+async function favoriSilById(id) {
+  try {
+    const r = await fetch('/api/favoriler/' + id, { method: 'DELETE' });
+    if (r.ok) { toast('Favoriden çıkarıldı.'); await favorileriYukle(); }
+  } catch { toast('İşlem başarısız.'); }
+}
+
+async function favoriAc(f) {
+  el('favDropdown').hidden = true;
+  loading(true);
+  try {
+    const res = await fetch('/api/tkgm/parsel/' + encodeURIComponent(f.mahalle_kodu) + '/' +
+      encodeURIComponent(f.ada) + '/' + encodeURIComponent(f.parsel));
+    if (res.status === 401) { authModalAc('giris'); return; }
+    const data = await res.json();
+    if (data.ok) { parseliCiz(data.veri); bilgiGoster(data.veri, data.kaynak); }
+    else toast('Parsel yüklenemedi.');
+  } catch { toast('Sunucuya ulaşılamadı.'); }
+  finally { loading(false); }
+}
+
+function renderFavoriler() {
+  const list = el('favList');
+  if (!list) return;
+  if (!favoriler.length) {
+    list.innerHTML = '<div class="fav-empty">Henüz favori yok. Bir parsel sorgulayıp ★ ile ekleyin.</div>';
+    return;
+  }
+  list.innerHTML = favoriler.map((f) =>
+    '<div class="fav-item" data-id="' + f.id + '">' +
+      '<div class="fav-main">' +
+        '<div class="fav-ap">Ada ' + esc(f.ada) + ' · Parsel ' + esc(f.parsel) + '</div>' +
+        '<div class="fav-loc">' + esc(f.il || '') + ' / ' + esc(f.ilce || '') + ' / ' + esc(f.mahalle || '') + '</div>' +
+      '</div>' +
+      '<button class="fav-del" data-id="' + f.id + '" title="Sil" aria-label="Sil">🗑</button>' +
+    '</div>'
+  ).join('');
+}
+
+el('favOpenBtn').addEventListener('click', () => {
+  const d = el('favDropdown');
+  d.hidden = !d.hidden;
+  if (!d.hidden) renderFavoriler();
+});
+el('favClose').addEventListener('click', () => { el('favDropdown').hidden = true; });
+el('favList').addEventListener('click', (e) => {
+  const del = e.target.closest('.fav-del');
+  if (del) { e.stopPropagation(); favoriSilById(del.dataset.id); return; }
+  const item = e.target.closest('.fav-item');
+  if (item) { const f = favoriler.find((x) => String(x.id) === item.dataset.id); if (f) favoriAc(f); }
+});
+
+// ---- Ölçüm aracı (mesafe / alan) ----
+let olcumNoktalar = [];
+let olcumLayer = null;
+
+function olcumModuAyarla(mod) {
+  olcumModu = (olcumModu === mod) ? null : mod;
+  el('toolMesafe').classList.toggle('active', olcumModu === 'mesafe');
+  el('toolAlan').classList.toggle('active', olcumModu === 'alan');
+  el('toolTemizle').hidden = !olcumModu;
+  olcumTemizle();
+  if (olcumModu) toast(olcumModu === 'mesafe' ? 'Mesafe için haritada noktalara tıklayın.' : 'Alan için köşelere tıklayın (en az 3).');
+}
+
+function olcumTemizle() {
+  olcumNoktalar = [];
+  if (olcumLayer) { map.removeLayer(olcumLayer); olcumLayer = null; }
+  el('measureReadout').hidden = true;
+}
+
+function olcumNoktaEkle(latlng) {
+  olcumNoktalar.push(latlng);
+  olcumCiz();
+}
+
+function olcumCiz() {
+  if (olcumLayer) map.removeLayer(olcumLayer);
+  olcumLayer = L.layerGroup().addTo(map);
+  const pts = olcumNoktalar;
+  if (olcumModu === 'alan' && pts.length >= 3) {
+    L.polygon(pts, { color: '#34c87a', weight: 2, fillColor: '#34c87a', fillOpacity: 0.15 }).addTo(olcumLayer);
+  } else if (pts.length >= 2) {
+    L.polyline(pts, { color: '#34c87a', weight: 3 }).addTo(olcumLayer);
+  }
+  pts.forEach((pt) => L.circleMarker(pt, { radius: 4, color: '#34c87a', fillColor: '#fff', fillOpacity: 1, weight: 2 }).addTo(olcumLayer));
+  olcumReadout();
+}
+
+function olcumReadout() {
+  const r = el('measureReadout');
+  const pts = olcumNoktalar;
+  if (!pts.length) { r.hidden = true; return; }
+  if (olcumModu === 'mesafe') {
+    let d = 0;
+    for (let i = 1; i < pts.length; i++) d += pts[i - 1].distanceTo(pts[i]);
+    r.innerHTML = 'Mesafe: <b>' + fmtMesafe(d) + '</b>' + (pts.length < 2 ? ' — nokta ekleyin' : '');
+  } else {
+    const a = pts.length >= 3 ? geodesicArea(pts) : 0;
+    r.innerHTML = 'Alan: <b>' + fmtAlanOlcum(a) + '</b>' + (pts.length < 3 ? ' — en az 3 nokta' : '');
+  }
+  r.hidden = false;
+}
+
+function fmtMesafe(m) {
+  if (m < 1000) return m.toLocaleString('tr-TR', { maximumFractionDigits: 1 }) + ' m';
+  return (m / 1000).toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' km';
+}
+function fmtAlanOlcum(m2) {
+  if (m2 <= 0) return '—';
+  const m2s = m2.toLocaleString('tr-TR', { maximumFractionDigits: 0 }) + ' m²';
+  const donum = (m2 / 1000).toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  return m2s + ' (' + donum + ' dönüm)';
+}
+function geodesicArea(latlngs) {
+  let area = 0; const d2r = Math.PI / 180; const n = latlngs.length;
+  if (n > 2) {
+    for (let i = 0; i < n; i++) {
+      const p1 = latlngs[i], p2 = latlngs[(i + 1) % n];
+      area += ((p2.lng - p1.lng) * d2r) * (2 + Math.sin(p1.lat * d2r) + Math.sin(p2.lat * d2r));
+    }
+    area = area * 6378137 * 6378137 / 2;
+  }
+  return Math.abs(area);
+}
+
+el('toolMesafe').addEventListener('click', () => olcumModuAyarla('mesafe'));
+el('toolAlan').addEventListener('click', () => olcumModuAyarla('alan'));
+el('toolTemizle').addEventListener('click', () => olcumTemizle());
 
 oturumKontrol();
 illeriYukle();

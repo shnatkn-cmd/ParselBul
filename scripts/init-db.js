@@ -48,6 +48,28 @@ CREATE TABLE IF NOT EXISTS kullanicilar (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_turkish_ci;
 `;
 
+const CREATE_FAVORILER = `
+CREATE TABLE IF NOT EXISTS favoriler (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  kullanici_id INT NOT NULL,
+  mahalle_kodu VARCHAR(20) NOT NULL,
+  ada VARCHAR(20) NOT NULL,
+  parsel VARCHAR(20) NOT NULL,
+  il VARCHAR(80) DEFAULT NULL,
+  ilce VARCHAR(80) DEFAULT NULL,
+  mahalle VARCHAR(120) DEFAULT NULL,
+  nitelik VARCHAR(255) DEFAULT NULL,
+  alan_m2 DECIMAL(14,2) DEFAULT NULL,
+  merkez_lat DECIMAL(10,7) DEFAULT NULL,
+  merkez_lng DECIMAL(10,7) DEFAULT NULL,
+  not_metni VARCHAR(500) DEFAULT NULL,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  UNIQUE KEY uq_fav (kullanici_id, mahalle_kodu, ada, parsel),
+  INDEX idx_kullanici (kullanici_id),
+  CONSTRAINT fk_fav_kullanici FOREIGN KEY (kullanici_id) REFERENCES kullanicilar(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_turkish_ci;
+`;
+
 async function tabloVar(pool, ad) {
   const [rows] = await pool.query(
     `SELECT COUNT(*) AS c FROM information_schema.tables
@@ -87,6 +109,8 @@ async function main() {
   console.log('  ✓ parseller (TKGM önbelleği) hazır');
   await pool.query(CREATE_KULLANICILAR);
   console.log('  ✓ kullanicilar hazır');
+  await pool.query(CREATE_FAVORILER);
+  console.log('  ✓ favoriler hazır');
 
   const [[{ c }]] = await pool.query('SELECT COUNT(*) AS c FROM parseller');
   const [[{ k }]] = await pool.query('SELECT COUNT(*) AS k FROM kullanicilar');

@@ -5,9 +5,10 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
   <title>ParselBul — Tapu ve Parsel Sorgusu</title>
   <meta name="description" content="Türkiye geneli parsel sorgulama. Haritaya tıklayın, parsel sınırları ve bilgileri anında görünsün." />
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%230b1410'/%3E%3Cpath d='M16 5 L27 16 L16 27 L5 16 Z' fill='%2334c87a'/%3E%3C/svg%3E" />
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
         integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
-  <link rel="stylesheet" href="/css/style.css" />
+  <link rel="stylesheet" href="/css/style.css?v=2" />
 </head>
 <body>
   <!-- Harita -->
@@ -24,11 +25,26 @@
         <button type="button" data-layer="uydu" class="active">Uydu</button>
         <button type="button" data-layer="sokak">Sokak</button>
       </div>
+      <button class="icon-btn" id="favOpenBtn" title="Favorilerim" aria-label="Favorilerim" hidden>★</button>
       <div class="auth-area" id="authArea">
         <button class="btn-login" id="loginOpenBtn">Giriş Yap</button>
       </div>
     </div>
   </div>
+
+  <!-- Favoriler menüsü -->
+  <div class="fav-dropdown" id="favDropdown" hidden>
+    <div class="fav-head">Favorilerim <button class="fav-x" id="favClose" aria-label="Kapat">×</button></div>
+    <div class="fav-list" id="favList"></div>
+  </div>
+
+  <!-- Harita araçları (ölçüm) -->
+  <div class="map-tools" id="mapTools">
+    <button class="tool-btn" id="toolMesafe" title="Mesafe ölç">📏 Mesafe</button>
+    <button class="tool-btn" id="toolAlan" title="Alan ölç">⬟ Alan</button>
+    <button class="tool-btn" id="toolTemizle" title="Ölçümü temizle" hidden>✕ Temizle</button>
+  </div>
+  <div class="measure-readout" id="measureReadout" hidden></div>
 
   <!-- Arama paneli -->
   <div class="search-panel" id="searchPanel">
@@ -105,6 +121,6 @@
 
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
           integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
-  <script src="/js/main.js"></script>
+  <script src="/js/main.js?v=2"></script>
 </body>
 </html>

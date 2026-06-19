@@ -19,13 +19,23 @@ if (db.isConfigured()) {
   app.use(createSessionMiddleware());
 }
 
-// Statik anasayfa ve varlıklar
-app.use(express.static(path.join(__dirname, 'public')));
+// Statik anasayfa ve varlıklar.
+// HTML/JS/CSS için no-cache: tarayıcı her seferinde ETag ile doğrular (değişmemişse 304).
+// Böylece deploy sonrası eski JS/CSS önbellekte takılı kalmaz.
+app.use(express.static(path.join(__dirname, 'public'), {
+  etag: true,
+  setHeaders: (res, filePath) => {
+    if (/\.(html|js|css)$/i.test(filePath)) {
+      res.setHeader('Cache-Control', 'no-cache');
+    }
+  },
+}));
 
 // API rotaları
-app.use('/api/auth', require('./routes/auth'));     // kayıt / giriş / çıkış / ben
-app.use('/api/tkgm', require('./routes/tkgm'));     // canlı TKGM sorgusu (iller/ilçeler/mahalleler/parsel)
-app.use('/api/parsel', require('./routes/parsel')); // önbellekte (kayıtlı parsellerde) arama
+app.use('/api/auth', require('./routes/auth'));         // kayıt / giriş / çıkış / ben
+app.use('/api/tkgm', require('./routes/tkgm'));         // canlı TKGM sorgusu (iller/ilçeler/mahalleler/parsel)
+app.use('/api/parsel', require('./routes/parsel'));     // önbellekte (kayıtlı parsellerde) arama
+app.use('/api/favoriler', require('./routes/favoriler')); // kullanıcı favori parselleri
 
 // Sağlık kontrolü (Hostinger / izleme için)
 app.get('/health', (req, res) => {
