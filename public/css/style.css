@@ -282,6 +282,15 @@ a { color: inherit; text-decoration: none; }
 .info-actions a.primary { background: var(--brand); color: #08130d; border-color: var(--brand); }
 .info-actions a.primary:hover { background: var(--brand-dark); }
 .info-src { padding: 0 18px 14px; font-size: 11px; color: var(--muted); }
+.info-actions + .info-actions { padding-top: 0; }
+.info-btn {
+  flex: 1; text-align: center; font-size: 13px; font-weight: 600; cursor: pointer;
+  padding: 9px 10px; border-radius: 9px; border: 1px solid var(--line);
+  background: var(--surface-2); color: var(--ink);
+}
+.info-btn:hover { background: #11201a; border-color: var(--brand); }
+.imar-link { color: var(--brand); font-weight: 600; }
+.imar-link:hover { text-decoration: underline; }
 
 /* Modal (giriş/kayıt) */
 .modal-overlay {

@@ -1,6 +1,9 @@
 /* global L */
 'use strict';
 
+// Kısayol (en üstte tanımlı olmalı; aşağıdaki tüm bloklar kullanır)
+const el = (id) => document.getElementById(id);
+
 // ---- Harita kurulumu ----
 const map = L.map('map', { zoomControl: true, attributionControl: true }).setView([39.2, 35.0], 6);
 
@@ -59,7 +62,6 @@ document.addEventListener('click', (e) => {
 });
 
 // ---- Yardımcılar ----
-const el = (id) => document.getElementById(id);
 function esc(v) {
   return String(v == null ? '' : v).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 }
@@ -121,15 +123,66 @@ function bilgiGoster(p, kaynak) {
       '<div class="info-row"><span class="k">Nitelik</span><span class="v">' + esc(p.nitelik || '—') + '</span></div>' +
       (p.pafta ? '<div class="info-row"><span class="k">Pafta</span><span class="v">' + esc(p.pafta) + '</span></div>' : '') +
       '<div class="info-row"><span class="k">Mahalle Kodu</span><span class="v">' + esc(p.mahalleKodu || '—') + '</span></div>' +
+      '<div class="info-row"><span class="k">İmar Durumu</span><span class="v">' +
+        '<a class="imar-link" target="_blank" rel="noopener" href="https://www.turkiye.gov.tr/e-imar">e-İmar\'da sorgula →</a>' +
+      '</span></div>' +
     '</div>' +
     '<div class="info-actions">' +
-      (harita ? '<a class="primary" target="_blank" rel="noopener" href="https://www.google.com/maps?q=' + harita + '">Google Maps</a>' : '') +
-      '<a target="_blank" rel="noopener" href="https://wa.me/?text=' + paylasMetni + '">WhatsApp ile paylaş</a>' +
+      (harita ? '<a class="primary" target="_blank" rel="noopener" href="https://www.google.com/maps?q=' + harita + '">Haritalar</a>' : '') +
+      '<a target="_blank" rel="noopener" href="https://wa.me/?text=' + paylasMetni + '">WhatsApp</a>' +
     '</div>' +
-    '<div class="info-src">Kaynak: ' + (kaynak === 'onbellek' ? 'Önbellek (kayıtlı)' : 'TKGM') + '</div>';
+    '<div class="info-actions">' +
+      '<button class="info-btn" id="pdfBtn">📄 PDF</button>' +
+      '<button class="info-btn" id="linkBtn">🔗 Bağlantı</button>' +
+    '</div>' +
+    '<div class="info-src">Kaynak: ' + (kaynak === 'onbellek' ? 'Önbellek (kayıtlı)' : 'TKGM') +
+      ' · İmar bilgisi belediyeden, TKGM\'de yer almaz</div>';
   el('infoPanel').hidden = false;
   const favBtn = el('favToggle');
   if (favBtn) favBtn.addEventListener('click', () => favoriToggle(p));
+  const pdfBtn = el('pdfBtn');
+  if (pdfBtn) pdfBtn.addEventListener('click', () => parselPdf(p));
+  const linkBtn = el('linkBtn');
+  if (linkBtn) linkBtn.addEventListener('click', () => paylasLinkKopyala(p));
+}
+
+// Parsel bilgisini yazdırılabilir/PDF olarak açar (tarayıcının "PDF olarak kaydet"i ile indirilir)
+function parselPdf(p) {
+  const harita = p.merkez && p.merkez.lat ? p.merkez.lat + ', ' + p.merkez.lng : '—';
+  const satir = (k, v) => '<tr><td>' + esc(k) + '</td><td>' + esc(v) + '</td></tr>';
+  const html =
+    '<!doctype html><html lang="tr"><head><meta charset="utf-8"><title>ParselBul — Ada ' +
+    esc(p.adaNo) + ' Parsel ' + esc(p.parselNo) + '</title><style>' +
+    'body{font-family:system-ui,Segoe UI,Arial,sans-serif;color:#14241b;padding:32px;max-width:640px;margin:auto}' +
+    'h1{color:#1f7a4d;font-size:22px;margin:0 0 4px}.sub{color:#5d6b62;margin:0 0 20px}' +
+    'table{width:100%;border-collapse:collapse}td{padding:9px 6px;border-bottom:1px solid #e3e8e4;font-size:14px}' +
+    'td:first-child{color:#5d6b62;width:40%}td:last-child{font-weight:600}' +
+    '.foot{margin-top:24px;font-size:12px;color:#8a978f}@media print{body{padding:0}}</style></head><body>' +
+    '<h1>◆ ParselBul</h1><p class="sub">Parsel Bilgileri</p><table>' +
+    satir('İl / İlçe / Mahalle', (p.il || '') + ' / ' + (p.ilce || '') + ' / ' + (p.mahalle || '')) +
+    satir('Ada / Parsel', p.adaNo + ' / ' + p.parselNo) +
+    satir('Alan', fmtAlan(p.alan)) +
+    satir('Nitelik', p.nitelik || '—') +
+    (p.pafta ? satir('Pafta', p.pafta) : '') +
+    satir('Mahalle Kodu', p.mahalleKodu || '—') +
+    satir('Merkez Koordinat', harita) +
+    '</table><p class="foot">Kaynak: TKGM · İmar durumu belediyeden sorgulanmalıdır.<br>ParselBul ile oluşturuldu.</p>' +
+    '<script>window.onload=function(){window.print();}<\/script></body></html>';
+  const w = window.open('', '_blank');
+  if (!w) { toast('PDF için açılır pencereye izin verin.'); return; }
+  w.document.open(); w.document.write(html); w.document.close();
+}
+
+// Parsele doğrudan giden paylaşılabilir bağlantıyı panoya kopyalar
+function paylasLinkKopyala(p) {
+  const url = location.origin + '/?mah=' + encodeURIComponent(p.mahalleKodu) +
+    '&ada=' + encodeURIComponent(p.adaNo) + '&parsel=' + encodeURIComponent(p.parselNo);
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(url).then(() => toast('Bağlantı kopyalandı.'),
+      () => toast('Kopyalanamadı: ' + url));
+  } else {
+    toast(url);
+  }
 }
 
 el('infoClose').addEventListener('click', () => {
@@ -364,6 +417,7 @@ el('authForm').addEventListener('submit', async (e) => {
       kullanici = data.kullanici;
       renderAuth();
       favorileriYukle();
+      paylasilaniYukle();
       authModalKapat();
       el('authForm').reset();
       toast('Hoş geldiniz' + (kullanici.ad ? ', ' + kullanici.ad : '') + '!');
@@ -390,7 +444,26 @@ async function oturumKontrol() {
     kullanici = data.kullanici || null;
   } catch { kullanici = null; }
   renderAuth();
-  if (kullanici) favorileriYukle();
+  if (kullanici) { favorileriYukle(); paylasilaniYukle(); }
+  else if (paylasParsel) { authModalAc('giris'); toast('Paylaşılan parseli görmek için giriş yapın.'); }
+}
+
+// ---- Paylaşılan bağlantı (?mah=&ada=&parsel=) ile gelen parseli otomatik aç ----
+const _sp = new URLSearchParams(location.search);
+let paylasParsel = (_sp.get('mah') && _sp.get('ada') && _sp.get('parsel'))
+  ? { mah: _sp.get('mah'), ada: _sp.get('ada'), parsel: _sp.get('parsel') } : null;
+
+async function paylasilaniYukle() {
+  if (!paylasParsel || !kullanici) return;
+  const { mah, ada, parsel } = paylasParsel;
+  paylasParsel = null;
+  loading(true);
+  try {
+    const res = await fetch('/api/tkgm/parsel/' + encodeURIComponent(mah) + '/' +
+      encodeURIComponent(ada) + '/' + encodeURIComponent(parsel));
+    const data = await res.json();
+    if (data.ok) { parseliCiz(data.veri); bilgiGoster(data.veri, data.kaynak); }
+  } catch { /* yoksay */ } finally { loading(false); }
 }
 
 // ---- Favoriler ----
