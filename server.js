@@ -14,6 +14,9 @@ app.use(express.json());
 // Statik anasayfa ve varlıklar
 app.use(express.static(path.join(__dirname, 'public')));
 
+// Parsel API rotaları
+app.use('/api/parsel', require('./routes/parsel'));
+
 // Sağlık kontrolü (Hostinger / izleme için)
 app.get('/health', (req, res) => {
   res.json({ status: 'ok', uptime: process.uptime() });
