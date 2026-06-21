@@ -156,6 +156,20 @@ a { color: inherit; text-decoration: none; }
 .info-actions a.primary:hover { background: var(--accent-2); }
 .info-src { margin-top: 12px; font-size: 11px; color: var(--muted); line-height: 1.4; }
 
+/* Ek bilgi bölümü */
+.info-ek { margin-top: 14px; padding-top: 14px; border-top: 1px solid var(--line); }
+.ek-title { font-size: 13px; font-weight: 700; margin-bottom: 8px; display: flex; align-items: center; gap: 8px; }
+.ek-rol { font-size: 10px; font-weight: 700; color: #170d03; background: var(--accent); padding: 2px 7px; border-radius: 999px; letter-spacing: .03em; }
+.ek-text { font-size: 14px; line-height: 1.5; white-space: pre-wrap; word-break: break-word; }
+.ek-bos { color: var(--muted); font-style: italic; }
+.info-ek textarea {
+  width: 100%; min-height: 70px; resize: vertical; font-family: inherit; font-size: 14px;
+  padding: 10px 12px; border: 1px solid var(--line); border-radius: 10px;
+  background: var(--panel); color: var(--ink); margin-bottom: 8px;
+}
+.info-ek textarea:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px rgba(239,139,50,.2); }
+.btn.ek-kaydet { height: 38px; font-size: 14px; margin-top: 0; }
+
 /* Favoriler listesi */
 .fav-empty { padding: 14px 2px; color: var(--muted); font-size: 14px; }
 .fav-item {

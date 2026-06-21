@@ -14,6 +14,14 @@ function requireAuth(req, res, next) {
   return res.status(401).json({ ok: false, hata: 'Bu işlem için giriş yapmalısınız.' });
 }
 
+/** Yalnızca admin rolüne izin veren ara katman. */
+function requireAdmin(req, res, next) {
+  const k = req.session && req.session.kullanici;
+  if (!k) return res.status(401).json({ ok: false, hata: 'Bu işlem için giriş yapmalısınız.' });
+  if (k.rol !== 'admin') return res.status(403).json({ ok: false, hata: 'Bu işlem için yetkiniz yok.' });
+  return next();
+}
+
 /** Kayıt: ad, eposta, şifre. */
 router.post('/kayit', async (req, res) => {
   if (!db.isConfigured()) return res.status(503).json({ ok: false, hata: 'Veritabanı yapılandırılmadı.' });
@@ -80,3 +88,4 @@ router.get('/ben', (req, res) => {
 
 module.exports = router;
 module.exports.requireAuth = requireAuth;
+module.exports.requireAdmin = requireAdmin;

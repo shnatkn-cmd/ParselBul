@@ -27,6 +27,7 @@ CREATE TABLE IF NOT EXISTS parseller (
   merkez_lat DECIMAL(10,7) DEFAULT NULL,
   merkez_lng DECIMAL(10,7) DEFAULT NULL,
   geometri_json LONGTEXT DEFAULT NULL,
+  ek_bilgi TEXT DEFAULT NULL,
   sorgu_sayisi INT NOT NULL DEFAULT 1,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
@@ -106,6 +107,11 @@ async function main() {
 
   console.log('Şema kuruluyor...');
   await pool.query(CREATE_PARSELLER);
+  // Migration: mevcut parseller tablosuna ek_bilgi kolonu yoksa ekle
+  if (await tabloVar(pool, 'parseller') && !(await kolonVar(pool, 'parseller', 'ek_bilgi'))) {
+    console.log('  + ek_bilgi kolonu ekleniyor...');
+    await pool.query('ALTER TABLE parseller ADD COLUMN ek_bilgi TEXT DEFAULT NULL AFTER geometri_json');
+  }
   console.log('  ✓ parseller (TKGM önbelleği) hazır');
   await pool.query(CREATE_KULLANICILAR);
   console.log('  ✓ kullanicilar hazır');

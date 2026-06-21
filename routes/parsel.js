@@ -7,6 +7,7 @@
 
 const express = require('express');
 const db = require('../config/db');
+const { requireAdmin } = require('./auth');
 
 const router = express.Router();
 
@@ -45,6 +46,36 @@ router.get('/ara', async (req, res) => {
   } catch (err) {
     console.error('Parsel arama hatası:', err.message);
     res.status(500).json({ ok: false, hata: 'Sorgu sırasında bir hata oluştu.' });
+  }
+});
+
+/**
+ * POST /api/parsel/ek-bilgi  (yalnızca admin)
+ * Body: { mahalleKodu, adaNo, parselNo, ekBilgi }
+ * İlgili (önbellekteki) parsele admin notu ekler/günceller.
+ */
+router.post('/ek-bilgi', requireAdmin, async (req, res) => {
+  if (!db.isConfigured()) return res.status(503).json({ ok: false, hata: 'Veritabanı yapılandırılmadı.' });
+  const b = req.body || {};
+  const mahalleKodu = b.mahalleKodu != null ? String(b.mahalleKodu) : '';
+  const ada = b.adaNo != null ? String(b.adaNo) : '';
+  const parsel = b.parselNo != null ? String(b.parselNo) : '';
+  const ekBilgi = (b.ekBilgi || '').slice(0, 5000);
+  if (!mahalleKodu || !ada || !parsel) {
+    return res.status(400).json({ ok: false, hata: 'Eksik parsel bilgisi.' });
+  }
+  try {
+    const [r] = await db.getPool().query(
+      'UPDATE parseller SET ek_bilgi = ? WHERE mahalle_kodu = ? AND ada = ? AND parsel = ?',
+      [ekBilgi || null, mahalleKodu, ada, parsel]
+    );
+    if (r.affectedRows === 0) {
+      return res.status(404).json({ ok: false, hata: 'Parsel önbellekte bulunamadı (önce sorgulayın).' });
+    }
+    res.json({ ok: true, ekBilgi });
+  } catch (err) {
+    console.error('Ek bilgi kaydetme hatası:', err.message);
+    res.status(500).json({ ok: false, hata: 'Ek bilgi kaydedilemedi.' });
   }
 });
 

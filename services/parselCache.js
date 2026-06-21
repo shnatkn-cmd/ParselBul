@@ -72,6 +72,7 @@ function rowToParsel(row) {
     durum: row.durum || '',
     merkez: { lat: row.merkez_lat != null ? Number(row.merkez_lat) : 0, lng: row.merkez_lng != null ? Number(row.merkez_lng) : 0 },
     geometri,
+    ekBilgi: row.ek_bilgi || '',
   };
 }
 

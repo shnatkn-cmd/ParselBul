@@ -111,6 +111,13 @@ function bilgiGoster(p, kaynak) {
     (harita ? ` https://www.google.com/maps?q=${harita}` : '')
   );
   const favAktif = favoriIndex.has(favoriKey(p));
+  const isAdmin = kullanici && kullanici.rol === 'admin';
+  const ekBilgiHtml = isAdmin
+    ? '<div class="info-ek"><div class="ek-title">Ek Bilgi <span class="ek-rol">admin</span></div>' +
+        '<textarea id="ekBilgiInput" rows="3" placeholder="Bu parsel hakkında not ekleyin…">' + esc(p.ekBilgi || '') + '</textarea>' +
+        '<button class="btn ek-kaydet" id="ekBilgiKaydet">Ek Bilgiyi Kaydet</button></div>'
+    : '<div class="info-ek"><div class="ek-title">Ek Bilgi</div>' +
+        '<div class="ek-text">' + (p.ekBilgi ? esc(p.ekBilgi) : '<span class="ek-bos">Henüz ek bilgi eklenmemiş.</span>') + '</div></div>';
   el('infoContent').innerHTML =
     '<div class="info-head">' +
       '<button class="info-fav' + (favAktif ? ' aktif' : '') + '" id="favToggle" title="Favorilere ekle/çıkar">★</button>' +
@@ -126,6 +133,7 @@ function bilgiGoster(p, kaynak) {
         '<a class="imar-link" target="_blank" rel="noopener" href="https://www.turkiye.gov.tr/e-imar">e-İmar\'da sorgula →</a>' +
       '</span></div>' +
     '</div>' +
+    ekBilgiHtml +
     '<div class="info-actions">' +
       (harita ? '<a class="primary" target="_blank" rel="noopener" href="https://www.google.com/maps?q=' + harita + '">Haritalar</a>' : '') +
       '<a target="_blank" rel="noopener" href="https://wa.me/?text=' + paylasMetni + '">WhatsApp</a>' +
@@ -143,6 +151,32 @@ function bilgiGoster(p, kaynak) {
   if (pdfBtn) pdfBtn.addEventListener('click', () => parselPdf(p));
   const linkBtn = el('linkBtn');
   if (linkBtn) linkBtn.addEventListener('click', () => paylasLinkKopyala(p));
+  const ekKaydet = el('ekBilgiKaydet');
+  if (ekKaydet) ekKaydet.addEventListener('click', () => ekBilgiKaydet(p));
+}
+
+// Admin: parsele ek bilgi kaydeder
+async function ekBilgiKaydet(p) {
+  const inp = el('ekBilgiInput');
+  if (!inp) return;
+  const btn = el('ekBilgiKaydet');
+  btn.disabled = true;
+  try {
+    const res = await fetch('/api/parsel/ek-bilgi', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ mahalleKodu: p.mahalleKodu, adaNo: p.adaNo, parselNo: p.parselNo, ekBilgi: inp.value }),
+    });
+    if (res.status === 401) { authModalAc('giris'); return; }
+    if (res.status === 403) { toast('Bu işlem için admin olmalısınız.'); return; }
+    const data = await res.json();
+    if (data.ok) { p.ekBilgi = data.ekBilgi; if (aktifParsel) aktifParsel.ekBilgi = data.ekBilgi; toast('Ek bilgi kaydedildi.'); }
+    else toast(data.hata || 'Kaydedilemedi.');
+  } catch {
+    toast('Sunucuya ulaşılamadı.');
+  } finally {
+    btn.disabled = false;
+  }
 }
 
 // Parsel bilgisini yazdırılabilir/PDF olarak açar (tarayıcının "PDF olarak kaydet"i ile indirilir)
