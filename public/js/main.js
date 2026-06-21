@@ -114,6 +114,9 @@ function bilgiGoster(p, kaynak) {
   );
   const favAktif = favoriIndex.has(favoriKey(p));
   const isAdmin = kullanici && kullanici.rol === 'admin';
+  // İmar verisi TKGM'de yok, belediye kaynaklı. Konuma özel arama linki (en doğru hedefe götürür).
+  const imarUrl = 'https://www.google.com/search?q=' +
+    encodeURIComponent(((p.il || '') + ' ' + (p.ilce || '') + ' belediyesi imar durumu sorgulama').trim());
   const ekBilgiHtml = isAdmin
     ? '<div class="info-ek"><div class="ek-title">Ek Bilgi <span class="ek-rol">admin</span></div>' +
         '<textarea id="ekBilgiInput" rows="3" placeholder="Bu parsel hakkında not ekleyin…">' + esc(p.ekBilgi || '') + '</textarea>' +
@@ -132,7 +135,7 @@ function bilgiGoster(p, kaynak) {
       (p.pafta ? '<div class="info-row"><span class="k">Pafta</span><span class="v">' + esc(p.pafta) + '</span></div>' : '') +
       '<div class="info-row"><span class="k">Mahalle Kodu</span><span class="v">' + esc(p.mahalleKodu || '—') + '</span></div>' +
       '<div class="info-row"><span class="k">İmar Durumu</span><span class="v">' +
-        '<a class="imar-link" target="_blank" rel="noopener" href="https://e-plan.gov.tr/">İmar planı sorgula →</a>' +
+        '<a class="imar-link" target="_blank" rel="noopener" href="' + imarUrl + '">' + esc(p.ilce || 'Belediye') + ' imar sorgula →</a>' +
       '</span></div>' +
     '</div>' +
     ekBilgiHtml +
