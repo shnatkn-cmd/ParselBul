@@ -3,26 +3,129 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
-  <title>ParselBul — Tapu ve Parsel Sorgusu</title>
-  <meta name="description" content="Türkiye geneli parsel sorgulama. Haritaya tıklayın, parsel sınırları ve bilgileri anında görünsün." />
-  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%230b1410'/%3E%3Cpath d='M16 5 L27 16 L16 27 L5 16 Z' fill='%2334c87a'/%3E%3C/svg%3E" />
+  <title>ParselBul — Tapu ve İmar Sorgusu</title>
+  <meta name="description" content="Türkiye geneli parsel sorgulama. Haritaya tıklayın, parsel bilgileri anında görünsün." />
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%23ef8b32'/%3E%3Cpath d='M16 7a6 6 0 0 0-6 6c0 4.5 6 12 6 12s6-7.5 6-12a6 6 0 0 0-6-6zm0 8.2A2.2 2.2 0 1 1 16 10.8a2.2 2.2 0 0 1 0 4.4z' fill='%23140d05'/%3E%3C/svg%3E" />
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
         integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
-  <link rel="stylesheet" href="/css/style.css?v=5" />
+  <link rel="stylesheet" href="/css/style.css?v=6" />
 </head>
 <body>
-  <!-- Harita -->
-  <div id="map"></div>
+  <!-- Sol kenar çubuğu -->
+  <aside class="sidebar" id="sidebar">
+    <div class="sb-head">
+      <div class="logo">P</div>
+      <div class="sb-titles">
+        <div class="sb-title">ParselBul</div>
+        <div class="sb-sub">Tapu ve İmar Sorgusu</div>
+      </div>
+    </div>
 
-  <!-- Üst bar -->
-  <div class="topbar">
-    <a class="brand" href="/">
-      <span class="brand-mark">◆</span>
-      <span class="brand-name">Parsel<strong>Bul</strong></span>
-    </a>
-    <div class="topbar-right">
+    <nav class="sb-nav" id="sbNav">
+      <button class="nav-item active" data-view="harita">
+        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><polygon points="15 9 13 13 9 15 11 11" fill="currentColor" stroke="none"/></svg>
+        <span>Harita</span>
+      </button>
+      <button class="nav-item" data-view="ara">
+        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.5" y2="16.5"/></svg>
+        <span>Ara</span>
+      </button>
+      <button class="nav-item" data-view="fav">
+        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 21s-7-4.5-9.5-9A5 5 0 0 1 12 6a5 5 0 0 1 9.5 6c-2.5 4.5-9.5 9-9.5 9z"/></svg>
+        <span>Favoriler</span>
+      </button>
+    </nav>
+
+    <div class="sb-quick">
+      <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.5" y2="16.5"/></svg>
+      <input id="quickSearch" type="text" placeholder="Adres veya konum ara..." autocomplete="off" />
+    </div>
+
+    <div class="sb-body" id="sbBody">
+      <!-- Boş durum -->
+      <div class="view view-empty" id="viewHarita">
+        <div class="empty-pin">
+          <svg viewBox="0 0 24 24" width="34" height="34" fill="currentColor"><path d="M12 2a7 7 0 0 0-7 7c0 5 7 13 7 13s7-8 7-13a7 7 0 0 0-7-7zm0 9.5A2.5 2.5 0 1 1 12 6.5a2.5 2.5 0 0 1 0 5z"/></svg>
+        </div>
+        <h3>Haritaya tıklayın</h3>
+        <p>Herhangi bir konuma tıklayarak parsel bilgilerini görüntüleyin.</p>
+      </div>
+
+      <!-- Ara -->
+      <div class="view" id="viewAra" hidden>
+        <div class="search-tabs" id="searchTabs">
+          <button type="button" data-mode="adres" class="active">Adres</button>
+          <button type="button" data-mode="adapar">Ada / Parsel</button>
+        </div>
+        <div class="field">
+          <label for="il">İl</label>
+          <select id="il"><option value="">Yükleniyor…</option></select>
+        </div>
+        <div class="field">
+          <label for="ilce">İlçe</label>
+          <select id="ilce" disabled><option value="">İl seçin</option></select>
+        </div>
+        <div class="field">
+          <label for="mahalle">Mahalle</label>
+          <select id="mahalle" disabled><option value="">İlçe seçin</option></select>
+        </div>
+        <div id="modeAdres">
+          <div class="field">
+            <label for="cadde">Cadde / Sokak</label>
+            <input id="cadde" type="text" placeholder="Örn. Atatürk Caddesi" autocomplete="off" />
+          </div>
+          <div class="field">
+            <label for="binaNo">Bina No</label>
+            <input id="binaNo" type="text" placeholder="Örn. 12" autocomplete="off" />
+          </div>
+          <button class="btn" id="adresBulBtn">Adresi Bul</button>
+        </div>
+        <div id="modeAdapar" hidden>
+          <div class="row">
+            <div class="field">
+              <label for="ada">Ada</label>
+              <input id="ada" type="text" inputmode="numeric" placeholder="Ada" autocomplete="off" />
+            </div>
+            <div class="field">
+              <label for="parsel">Parsel</label>
+              <input id="parsel" type="text" inputmode="numeric" placeholder="Parsel" autocomplete="off" />
+            </div>
+          </div>
+          <button class="btn" id="sorgulaBtn">Sorgula</button>
+        </div>
+        <p class="panel-hint">İl/İlçe/Mahalle seçince harita oraya gider. Haritaya tıklayarak da sorgulayabilirsiniz.</p>
+      </div>
+
+      <!-- Favoriler -->
+      <div class="view" id="viewFav" hidden>
+        <div class="view-title">Favorilerim</div>
+        <div class="fav-list" id="favList"></div>
+      </div>
+
+      <!-- Seçili parsel bilgisi -->
+      <div class="view" id="viewParsel" hidden>
+        <button class="view-back" id="infoClose">← Geri</button>
+        <div id="infoContent"></div>
+      </div>
+    </div>
+
+    <div class="sb-foot">
+      <div class="auth-area" id="authArea">
+        <button class="btn-login" id="loginOpenBtn">Giriş Yap</button>
+      </div>
+    </div>
+  </aside>
+
+  <!-- Harita alanı -->
+  <div class="map-area">
+    <button class="mobile-toggle" id="mobileToggle" aria-label="Menü">☰</button>
+    <div id="map"></div>
+
+    <div class="map-ctrl-tr">
       <div class="style-switch" id="styleSwitch">
-        <button class="style-btn" id="styleBtn" type="button">🗺️ <span id="styleBtnLabel">Uydu</span> ▾</button>
+        <button class="map-btn" id="styleBtn" title="Harita stili" aria-label="Harita stili">
+          <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2"><polygon points="12 3 21 8 12 13 3 8 12 3"/><polyline points="3 13 12 18 21 13"/></svg>
+        </button>
         <div class="style-menu" id="styleMenu" hidden>
           <div class="style-menu-title">HARİTA STİLİ</div>
           <div class="style-grid">
@@ -33,86 +136,16 @@
           </div>
         </div>
       </div>
-      <button class="icon-btn" id="favOpenBtn" title="Favorilerim" aria-label="Favorilerim" hidden>★</button>
-      <div class="auth-area" id="authArea">
-        <button class="btn-login" id="loginOpenBtn">Giriş Yap</button>
-      </div>
     </div>
-  </div>
 
-  <!-- Favoriler menüsü -->
-  <div class="fav-dropdown" id="favDropdown" hidden>
-    <div class="fav-head">Favorilerim <button class="fav-x" id="favClose" aria-label="Kapat">×</button></div>
-    <div class="fav-list" id="favList"></div>
-  </div>
-
-  <!-- Harita araçları (ölçüm) -->
-  <div class="map-tools" id="mapTools">
-    <button class="tool-btn" id="toolMesafe" title="Mesafe ölç">📏 Mesafe</button>
-    <button class="tool-btn" id="toolAlan" title="Alan ölç">⬟ Alan</button>
-    <button class="tool-btn" id="toolTemizle" title="Ölçümü temizle" hidden>✕ Temizle</button>
-  </div>
-  <div class="measure-readout" id="measureReadout" hidden></div>
-
-  <!-- Arama paneli -->
-  <div class="search-panel" id="searchPanel">
-    <button class="panel-toggle" id="panelToggle" title="Paneli aç/kapat" aria-label="Paneli aç/kapat">⌕</button>
-    <div class="panel-body">
-      <div class="search-tabs" id="searchTabs">
-        <button type="button" data-mode="adres" class="active">📍 Adres</button>
-        <button type="button" data-mode="adapar"># Ada / Parsel</button>
-      </div>
-
-      <div class="field">
-        <label for="il">İl</label>
-        <select id="il"><option value="">Yükleniyor…</option></select>
-      </div>
-      <div class="field">
-        <label for="ilce">İlçe</label>
-        <select id="ilce" disabled><option value="">İl seçin</option></select>
-      </div>
-      <div class="field">
-        <label for="mahalle">Mahalle</label>
-        <select id="mahalle" disabled><option value="">İlçe seçin</option></select>
-      </div>
-
-      <!-- Adres modu -->
-      <div id="modeAdres">
-        <div class="field">
-          <label for="cadde">Cadde / Sokak</label>
-          <input id="cadde" type="text" placeholder="Örn. Atatürk Caddesi" autocomplete="off" />
-        </div>
-        <div class="field">
-          <label for="binaNo">Bina No</label>
-          <input id="binaNo" type="text" placeholder="Örn. 12" autocomplete="off" />
-        </div>
-        <button class="btn" id="adresBulBtn">Adresi Bul</button>
-      </div>
-
-      <!-- Ada / Parsel modu -->
-      <div id="modeAdapar" hidden>
-        <div class="row">
-          <div class="field">
-            <label for="ada">Ada</label>
-            <input id="ada" type="text" inputmode="numeric" placeholder="Ada" autocomplete="off" />
-          </div>
-          <div class="field">
-            <label for="parsel">Parsel</label>
-            <input id="parsel" type="text" inputmode="numeric" placeholder="Parsel" autocomplete="off" />
-          </div>
-        </div>
-        <button class="btn" id="sorgulaBtn">Sorgula</button>
-      </div>
-
-      <p class="panel-hint" id="panelHint">İl/İlçe/Mahalle seçince harita oraya gider. Haritaya tıklayarak da parsel sorgulayabilirsiniz.</p>
+    <div class="map-tools" id="mapTools">
+      <button class="map-btn sm" id="toolMesafe" title="Mesafe ölç">📏</button>
+      <button class="map-btn sm" id="toolAlan" title="Alan ölç">⬟</button>
+      <button class="map-btn sm" id="toolTemizle" title="Ölçümü temizle" hidden>✕</button>
+      <button class="map-btn sm" id="locateBtn" title="Konumum">◎</button>
     </div>
+    <div class="measure-readout" id="measureReadout" hidden></div>
   </div>
-
-  <!-- Bilgi paneli -->
-  <aside class="info-panel" id="infoPanel" hidden>
-    <button class="info-close" id="infoClose" aria-label="Kapat">×</button>
-    <div id="infoContent"></div>
-  </aside>
 
   <!-- Giriş / Kayıt modalı -->
   <div class="modal-overlay" id="authModal" hidden>
@@ -143,14 +176,11 @@
     </div>
   </div>
 
-  <!-- Bildirim -->
   <div class="toast" id="toast" hidden></div>
-
-  <!-- Yükleniyor -->
   <div class="map-loading" id="mapLoading" hidden><span class="spinner"></span> Sorgulanıyor…</div>
 
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
           integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
-  <script src="/js/main.js?v=5"></script>
+  <script src="/js/main.js?v=6"></script>
 </body>
 </html>

@@ -41,7 +41,6 @@ function stilSec(anahtar) {
   if (aktifStil) STILLER[aktifStil].katmanlar.forEach((k) => map.removeLayer(k));
   STILLER[anahtar].katmanlar.forEach((k) => k.addTo(map));
   aktifStil = anahtar;
-  el('styleBtnLabel').textContent = STILLER[anahtar].ad;
   document.querySelectorAll('.style-grid button').forEach((b) =>
     b.classList.toggle('active', b.dataset.style === anahtar));
 }
@@ -137,7 +136,7 @@ function bilgiGoster(p, kaynak) {
     '</div>' +
     '<div class="info-src">Kaynak: ' + (kaynak === 'onbellek' ? 'Önbellek (kayıtlı)' : 'TKGM') +
       ' · İmar bilgisi belediyeden, TKGM\'de yer almaz</div>';
-  el('infoPanel').hidden = false;
+  gorunum('parsel');
   const favBtn = el('favToggle');
   if (favBtn) favBtn.addEventListener('click', () => favoriToggle(p));
   const pdfBtn = el('pdfBtn');
@@ -186,8 +185,8 @@ function paylasLinkKopyala(p) {
 }
 
 el('infoClose').addEventListener('click', () => {
-  el('infoPanel').hidden = true;
   if (parselLayer) { map.removeLayer(parselLayer); parselLayer = null; }
+  gorunum('harita');
 });
 
 // ---- Haritaya tıkla → koordinatla sorgu (ölçüm modunda nokta ekler) ----
@@ -343,9 +342,67 @@ el('adresBulBtn').addEventListener('click', adresBul);
   if (e.key === 'Enter') { e.preventDefault(); adresBul(); }
 }));
 
-// Mobil panel aç/kapat
-el('panelToggle').addEventListener('click', () => {
-  el('searchPanel').classList.toggle('collapsed');
+// ---- Sidebar görünüm değiştirme (Harita / Ara / Favoriler / Parsel) ----
+const VIEWS = { harita: 'viewHarita', ara: 'viewAra', fav: 'viewFav', parsel: 'viewParsel' };
+function gorunum(ad) {
+  Object.entries(VIEWS).forEach(([k, id]) => { el(id).hidden = (k !== ad); });
+  // nav aktifliği (parsel görünümünde nav'da karşılığı yok)
+  document.querySelectorAll('#sbNav .nav-item').forEach((b) =>
+    b.classList.toggle('active', b.dataset.view === ad));
+  if (window.innerWidth <= 820) document.body.classList.remove('menu-open');
+}
+
+el('sbNav').addEventListener('click', (e) => {
+  const b = e.target.closest('.nav-item');
+  if (!b) return;
+  const v = b.dataset.view;
+  if (v === 'fav') {
+    if (!kullanici) { authModalAc('giris'); toast('Favoriler için giriş yapın.'); return; }
+    favorileriYukle();
+  }
+  gorunum(v);
+});
+
+// Mobil menü aç/kapat
+el('mobileToggle').addEventListener('click', () => {
+  document.body.classList.toggle('menu-open');
+});
+
+// ---- Hızlı adres araması (üst kutu) ----
+async function hizliAra() {
+  if (!kullanici) { authModalAc('giris'); toast('Sorgulama için giriş yapın.'); return; }
+  const q = el('quickSearch').value.trim();
+  if (q.length < 3) { toast('En az 3 karakter girin.'); return; }
+  loading(true);
+  try {
+    const g = await (await fetch('/api/geocode?q=' + encodeURIComponent(q + ', Türkiye'))).json();
+    if (!g.ok || !g.sonuc) { toast('Konum bulunamadı.'); return; }
+    const { lat, lng } = g.sonuc;
+    map.flyTo([lat, lng], 18, { duration: 0.8 });
+    const res = await fetch('/api/tkgm/parsel-konum/' + lat.toFixed(6) + '/' + lng.toFixed(6));
+    if (res.status === 401) { authModalAc('giris'); return; }
+    const data = await res.json();
+    if (data.ok) parseliCiz(data.veri);
+    else toast('Konuma gidildi; o noktada parsel yok. Haritadan seçebilirsiniz.');
+  } catch {
+    toast('Adres servisi yanıt vermedi.');
+  } finally {
+    loading(false);
+  }
+}
+el('quickSearch').addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') { e.preventDefault(); hizliAra(); }
+});
+
+// ---- Konumum (geolocation) ----
+el('locateBtn').addEventListener('click', () => {
+  if (!navigator.geolocation) { toast('Tarayıcı konum desteklemiyor.'); return; }
+  toast('Konum alınıyor…');
+  navigator.geolocation.getCurrentPosition(
+    (pos) => map.flyTo([pos.coords.latitude, pos.coords.longitude], 17, { duration: 0.8 }),
+    () => toast('Konum alınamadı (izin gerekli).'),
+    { enableHighAccuracy: true, timeout: 10000 }
+  );
 });
 
 // ---- Kimlik doğrulama (giriş / kayıt / çıkış) ----
@@ -358,15 +415,14 @@ function renderAuth() {
     const bashar = (kullanici.ad || kullanici.eposta || '?').trim().charAt(0).toUpperCase();
     area.innerHTML =
       '<div class="user-chip"><span class="avatar">' + esc(bashar) + '</span>' +
-      '<span>' + esc(adGoster) + '</span>' +
+      '<span class="uname">' + esc(adGoster) + '</span>' +
       '<button id="logoutBtn">Çıkış</button></div>';
     el('logoutBtn').addEventListener('click', cikisYap);
   } else {
     area.innerHTML = '<button class="btn-login" id="loginOpenBtn">Giriş Yap</button>';
     el('loginOpenBtn').addEventListener('click', () => authModalAc('giris'));
   }
-  el('favOpenBtn').hidden = !kullanici;
-  if (!kullanici) { favoriler = []; favoriIndex.clear(); el('favDropdown').hidden = true; }
+  if (!kullanici) { favoriler = []; favoriIndex.clear(); renderFavoriler(); }
 }
 
 function authModalAc(mod) {
@@ -517,7 +573,6 @@ async function favoriSilById(id) {
 }
 
 async function favoriAc(f) {
-  el('favDropdown').hidden = true;
   loading(true);
   try {
     const res = await fetch('/api/tkgm/parsel/' + encodeURIComponent(f.mahalle_kodu) + '/' +
@@ -548,12 +603,6 @@ function renderFavoriler() {
   ).join('');
 }
 
-el('favOpenBtn').addEventListener('click', () => {
-  const d = el('favDropdown');
-  d.hidden = !d.hidden;
-  if (!d.hidden) renderFavoriler();
-});
-el('favClose').addEventListener('click', () => { el('favDropdown').hidden = true; });
 el('favList').addEventListener('click', (e) => {
   const del = e.target.closest('.fav-del');
   if (del) { e.stopPropagation(); favoriSilById(del.dataset.id); return; }
@@ -590,11 +639,11 @@ function olcumCiz() {
   olcumLayer = L.layerGroup().addTo(map);
   const pts = olcumNoktalar;
   if (olcumModu === 'alan' && pts.length >= 3) {
-    L.polygon(pts, { color: '#34c87a', weight: 2, fillColor: '#34c87a', fillOpacity: 0.15 }).addTo(olcumLayer);
+    L.polygon(pts, { color: '#ef8b32', weight: 2, fillColor: '#ef8b32', fillOpacity: 0.15 }).addTo(olcumLayer);
   } else if (pts.length >= 2) {
-    L.polyline(pts, { color: '#34c87a', weight: 3 }).addTo(olcumLayer);
+    L.polyline(pts, { color: '#ef8b32', weight: 3 }).addTo(olcumLayer);
   }
-  pts.forEach((pt) => L.circleMarker(pt, { radius: 4, color: '#34c87a', fillColor: '#fff', fillOpacity: 1, weight: 2 }).addTo(olcumLayer));
+  pts.forEach((pt) => L.circleMarker(pt, { radius: 4, color: '#ef8b32', fillColor: '#fff', fillOpacity: 1, weight: 2 }).addTo(olcumLayer));
   olcumReadout();
 }
 
