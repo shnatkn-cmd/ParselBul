@@ -5,7 +5,9 @@
 const el = (id) => document.getElementById(id);
 
 // ---- Harita kurulumu ----
-const map = L.map('map', { zoomControl: true, attributionControl: true }).setView([39.2, 35.0], 6);
+// maxZoom 21 ama maxNativeZoom ile o derinlikte tile yoksa en derin tile büyütülür
+// (yoksa "Map data not yet available" gri kareleri çıkar).
+const map = L.map('map', { zoomControl: true, attributionControl: true, maxZoom: 21 }).setView([39.2, 35.0], 6);
 
 // Harita stilleri (her biri bir veya daha çok tile katmanı)
 const STILLER = {
@@ -13,25 +15,25 @@ const STILLER = {
     ad: 'Uydu',
     katmanlar: [
       L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
-        { maxZoom: 20, attribution: 'Tiles &copy; Esri' }),
+        { maxZoom: 21, maxNativeZoom: 18, attribution: 'Tiles &copy; Esri' }),
       L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}',
-        { maxZoom: 20 }),
+        { maxZoom: 21, maxNativeZoom: 18 }),
     ],
   },
   sokaklar: {
     ad: 'Sokaklar',
     katmanlar: [L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
-      { maxZoom: 19, attribution: '&copy; OpenStreetMap' })],
+      { maxZoom: 21, maxNativeZoom: 19, attribution: '&copy; OpenStreetMap' })],
   },
   acik: {
     ad: 'Açık',
     katmanlar: [L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png',
-      { maxZoom: 20, subdomains: 'abcd', attribution: '&copy; OpenStreetMap, &copy; CARTO' })],
+      { maxZoom: 21, maxNativeZoom: 20, subdomains: 'abcd', attribution: '&copy; OpenStreetMap, &copy; CARTO' })],
   },
   arazi: {
     ad: 'Arazi',
     katmanlar: [L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/{z}/{y}/{x}',
-      { maxZoom: 19, attribution: 'Tiles &copy; Esri' })],
+      { maxZoom: 21, maxNativeZoom: 17, attribution: 'Tiles &copy; Esri' })],
   },
 };
 let aktifStil = null;
