@@ -132,7 +132,7 @@ function bilgiGoster(p, kaynak) {
       (p.pafta ? '<div class="info-row"><span class="k">Pafta</span><span class="v">' + esc(p.pafta) + '</span></div>' : '') +
       '<div class="info-row"><span class="k">Mahalle Kodu</span><span class="v">' + esc(p.mahalleKodu || '—') + '</span></div>' +
       '<div class="info-row"><span class="k">İmar Durumu</span><span class="v">' +
-        '<a class="imar-link" target="_blank" rel="noopener" href="https://www.turkiye.gov.tr/e-imar">e-İmar\'da sorgula →</a>' +
+        '<a class="imar-link" target="_blank" rel="noopener" href="https://e-plan.gov.tr/">İmar planı sorgula →</a>' +
       '</span></div>' +
     '</div>' +
     ekBilgiHtml +
